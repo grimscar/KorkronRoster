@@ -1,0 +1,32 @@
+## Interface: 16001
+## Title: |cffc41f3bKor'kron|r Guild Roster & Professions
+## Notes: Guild roster with shared professions, recipe lists, guild crafter search and PvP standings. Type /kr to open.
+## Author: Grimscar
+## Version: 2.3.2
+## SavedVariables: KorkronRosterDB
+## IconTexture: Interface\Icons\INV_BannerPVP_01
+## AddonCompartmentFunc: KorkronRoster_OnAddonCompartmentClick
+
+Core\Init.lua
+Core\Data.lua
+Core\DB.lua
+Core\Recipes.lua
+Core\Comm.lua
+Core\Roster.lua
+Core\Professions.lua
+Core\PvP.lua
+Core\Sync.lua
+Core\Ranks.lua
+Core\Tooltip.lua
+
+UI\Widgets.lua
+UI\MainWindow.lua
+UI\Inspector.lua
+UI\MemberCard.lua
+UI\Inactivity.lua
+UI\RankConfirm.lua
+UI\Minimap.lua
+UI\Options.lua
+
+Core\Slash.lua
+Core\Main.lua

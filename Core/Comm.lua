@@ -88,6 +88,8 @@ function Comm:RegisterHandler(cmd, fn)
 end
 
 KR:RegisterEvent("CHAT_MSG_ADDON", function(prefix, msg, channel, sender)
+    -- the game may hide any of these inside instances; a hidden message can't be read, so skip it
+    prefix, msg, channel, sender = KR.Text(prefix), KR.Text(msg), KR.Text(channel), KR.Text(sender)
     if prefix ~= Comm.PREFIX or channel ~= "GUILD" or not msg or not sender or not KR.db then return end
     local name = KR.NameKey(sender)
     if not name then return end
@@ -105,7 +107,8 @@ KR:RegisterEvent("CHAT_MSG_ADDON", function(prefix, msg, channel, sender)
     local cmd = string.match(msg, "^([^%^]+)")
     local list = cmd and handlers[cmd]
     if not list then return end
+    -- one broken handler must not stop the others
     for i = 1, #list do
-        list[i](name, msg, channel, sender)
+        KR.Safe(list[i], name, msg, channel, sender)
     end
 end)

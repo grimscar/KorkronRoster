@@ -4,15 +4,36 @@ local _, KR = ...
 local PvP = {}
 KR.PvP = PvP
 
+-- days since 1970-01-01 for a calendar date (plain arithmetic: no time zone involved)
+local function DayNumber(y, m, d)
+    if m <= 2 then y = y - 1 end
+    local era = math.floor(y / 400)
+    local yoe = y - era * 400
+    local doy = math.floor((153 * ((m + 9) % 12) + 2) / 5) + d - 1
+    return era * 146097 + yoe * 365 + math.floor(yoe / 4) - math.floor(yoe / 100) + doy - 719468
+end
+PvP.DayNumber = DayNumber
+
+-- today's date on the realm's clock: the same for every guildmate, whatever time zone their PC
+-- is in (each PC's own clock made "today" differ between guildmates, so their HKs showed as 0
+-- to each other for part of the day). Falls back to the PC's clock without the realm calendar.
+local function Today()
+    local realm = C_DateAndTime and C_DateAndTime.GetCurrentCalendarTime and C_DateAndTime.GetCurrentCalendarTime()
+    if realm and realm.year and realm.month and realm.monthDay then
+        return realm.year, realm.month, realm.monthDay
+    end
+    local d = date("*t", (GetServerTime and GetServerTime()) or time())
+    return d.year, d.month, d.day
+end
+
 -- date keys for today and the start of the current PvP week ("YYYY-MM-DD")
 function PvP.GetKeys()
     local resetDay = (KR.db and KR.db.settings.resetDay) or 3
-    local now = (GetServerTime and GetServerTime()) or time()
-    local d = date("*t", now)
-    -- anchor on noon so daylight-saving shifts never move the date
-    local noon = now - (d.hour * 3600 + d.min * 60 + d.sec) + 43200
-    local daysSinceReset = (d.wday - resetDay) % 7
-    return date("%Y-%m-%d", noon), date("%Y-%m-%d", noon - daysSinceReset * 86400)
+    local today = DayNumber(Today())
+    local wday = (today + 4) % 7 + 1 -- 1 = Sunday (1970-01-01 was a Thursday)
+    local weekStart = today - (wday - resetDay) % 7
+    -- noon UTC of that day, formatted in UTC, so nothing can shift the date
+    return date("!%Y-%m-%d", today * 86400 + 43200), date("!%Y-%m-%d", weekStart * 86400 + 43200)
 end
 
 local function Num(v)
@@ -98,9 +119,11 @@ function PvP:SetWeek(count)
     return p.pvp.weekHK
 end
 
--- a member's stats with stale daily/weekly numbers zeroed (they last synced before a reset)
-function PvP.Current(pvp)
-    local dayKey, weekKey = PvP.GetKeys()
+-- a member's stats with stale daily/weekly numbers zeroed (they last synced before a reset).
+-- dayKey, weekKey (optional): PvP.GetKeys(), when the caller already has them (a whole roster
+-- needs them once, not once per member and number)
+function PvP.Current(pvp, dayKey, weekKey)
+    if not dayKey then dayKey, weekKey = PvP.GetKeys() end
     local today = (pvp.dayKey == nil or pvp.dayKey == dayKey) and Num(pvp.todayHK) or 0
     local fresh = pvp.weekKey == nil or pvp.weekKey == weekKey
     return {

@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.3.3
+- Sturdier inside dungeons and raids: the game can hide some information from addons there. Kor'kron Roster now skips what it can't read instead of stopping, and a problem in one part no longer stops the rest. If something does go wrong, you'll see one short note in chat.
+- Fixed: "today" and "this week" for honorable kills now follow the realm's calendar instead of each player's own PC clock, so guildmates in other time zones no longer show 0 kills for part of the day.
+- `/kr help` is shorter.
+- Faster in big guilds: sorting the PvP Standings and Recipes tabs, the roster scan and the "Guild crafters" tooltip line do far less work per member, which adds up in a guild of hundreds.
+
 ## 2.3.2
 - Player card: the Kor'kron title and in-game rank are on their own line, so long titles no longer wrap over the online/zone line. Single-line fields are cut short with "..." instead of wrapping.
 - Dropdown menus (Set Rank, main character) use the game's standard dropdown style: dark dialog background, grey border, gold section titles, a checkmark on the current choice. This replaces the yellow block.

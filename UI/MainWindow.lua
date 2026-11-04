@@ -14,6 +14,10 @@ local frame, list
 local headerButtons, tabButtons = {}, {}
 local searchText = ""
 
+-- looked up once per redraw (Main:Refresh), not for every member, recipe and number shown: the
+-- guild table (each lookup asks the game for the guild name) and the PvP day and week
+local guild, pvpDay, pvpWeek
+
 -- shared columns ----------------------------------------------------------------------
 
 local function Lower(s)
@@ -115,12 +119,17 @@ local function PvPTooltip(cell, m)
     GameTooltip:Show()
 end
 
+-- a member's PvP numbers for the day and week this redraw shows
+local function PvPNow(m)
+    return KR.PvP.Current(m.pvp, pvpDay, pvpWeek)
+end
+
 local function PvPNumberColumn(field, title, width, color)
     return {
         id = field, title = title, width = width, align = "CENTER",
-        sortValue = function(m) return KR.PvP.Current(m.pvp)[field] end,
+        sortValue = function(m) return PvPNow(m)[field] end,
         render = function(cell, m)
-            local v = KR.PvP.Current(m.pvp)[field]
+            local v = PvPNow(m)[field]
             UI.SetCell(cell, "CENTER", v > 0 and (color .. v .. "|r") or "|cff5555550|r")
         end,
         tooltip = PvPTooltip,
@@ -129,9 +138,9 @@ end
 
 local RANK_COLUMN = {
     id = "rankNum", title = "PvP Rank", width = 160,
-    sortValue = function(m) return KR.PvP.Current(m.pvp).rankNum end,
+    sortValue = function(m) return PvPNow(m).rankNum end,
     render = function(cell, m)
-        local num = KR.PvP.Current(m.pvp).rankNum
+        local num = PvPNow(m).rankNum
         if num <= 0 then
             UI.SetCell(cell, "LEFT", "|cff666666Unranked|r")
         else
@@ -145,10 +154,12 @@ local RANK_COLUMN = {
 
 -- recipes tab --------------------------------------------------------------------------
 
-local function CraftersSorted(e)
+-- g (optional): the guild table, when checking many recipes at once
+local function CraftersSorted(e, g)
+    g = g or KR.DB:GetGuild()
     local online, offline = {}, {}
     for _, name in ipairs(e.crafters) do
-        local m = KR.DB:GetMember(name)
+        local m = g and KR.DB:GetMember(name, false, g)
         if m and m.online then online[#online + 1] = m else offline[#offline + 1] = m or { name = name } end
     end
     return online, offline
@@ -190,11 +201,11 @@ local RECIPE_COLUMNS = {
     {
         id = "crafters", title = "Crafters", width = 370,
         sortValue = function(e)
-            local online = CraftersSorted(e)
+            local online = CraftersSorted(e, guild)
             return #online * 1000 + #e.crafters
         end,
         render = function(cell, e)
-            local online, offline = CraftersSorted(e)
+            local online, offline = CraftersSorted(e, guild)
             local names = {}
             for _, m in ipairs(online) do names[#names + 1] = UI.DisplayName(m) end
             for i = 1, math.min(#offline, math.max(0, 4 - #names)) do names[#names + 1] = "|cff808080" .. offline[i].name .. "|r" end
@@ -443,7 +454,7 @@ local TABS = {
                 local match = searchText == ""
                     or string.find(Lower(e.recipe.name), searchText, 1, true)
                     or string.find(Lower(e.prof), searchText, 1, true)
-                if match and (showOffline or #(CraftersSorted(e)) > 0) then out[#out + 1] = e end
+                if match and (showOffline or #(CraftersSorted(e, guild)) > 0) then out[#out + 1] = e end
             end
             return out
         end,
@@ -477,7 +488,7 @@ end
 
 local function CellOnEnter(cell)
     cell:GetParent().highlight:Show()
-    if cell.col and cell.col.tooltip and cell.item then cell.col.tooltip(cell, cell.item) end
+    if cell.col and cell.col.tooltip and cell.item then KR.Safe(cell.col.tooltip, cell, cell.item) end
 end
 
 local function CellOnLeave(cell)
@@ -486,7 +497,7 @@ local function CellOnLeave(cell)
 end
 
 local function CellOnClick(cell, button)
-    if cell.col and cell.col.click and cell.item then cell.col.click(cell, cell.item, button) end
+    if cell.col and cell.col.click and cell.item then KR.Safe(cell.col.click, cell, cell.item, button) end
 end
 
 local function CreateRow(parent)
@@ -583,13 +594,19 @@ end
 
 function Main:Refresh()
     if not frame or not frame:IsShown() then return end
+    guild = KR.DB:GetGuild()
+    pvpDay, pvpWeek = KR.PvP.GetKeys()
     local tab = CurrentTab()
     local items = tab.items()
     local sort = SortState(tab)
     local col = FindColumn(tab, sort.key) or tab.columns[1]
     local get, asc, tiebreak = col.sortValue, sort.asc, tab.tiebreak
+    -- each row's sort value once: comparing called it twice per comparison, thousands of times
+    -- in a big guild (the PvP numbers and crafter lists aren't free to work out)
+    local value = {}
+    for i = 1, #items do value[items[i]] = get(items[i]) end
     table.sort(items, function(a, b)
-        local va, vb = get(a), get(b)
+        local va, vb = value[a], value[b]
         if va ~= vb then
             if asc then return va < vb end
             return va > vb

@@ -31,6 +31,66 @@ function KR:Debug(fmt, ...)
     DEFAULT_CHAT_FRAME:AddMessage("|cff888888[KR debug]|r " .. Format(fmt, ...))
 end
 
+-- hidden values and errors --------------------------------------------------
+-- Forever's client can hide values from addons inside instances ("secret values": chat text,
+-- names and more), and any string work on one throws an error. Kor'kron Loot's first raid test
+-- died of exactly that. Check game-provided text with Text() before touching it.
+
+function KR.Readable(value)
+    return not (issecretvalue and issecretvalue(value))
+end
+
+-- the value if it is a string we may read, else nil
+function KR.Text(value)
+    if type(value) == "string" and KR.Readable(value) then return value end
+    return nil
+end
+
+-- WoW hides addon errors by default, so a failure would silently stop a feature (and, without
+-- this, also stop every other handler of the same event). Everything event-, timer- and
+-- message-driven runs through Safe: errors are kept for /kr errors, and the first one is
+-- mentioned in chat (again after /kr errors clear).
+KR.errors = {}
+
+local function RecordError(err)
+    err = tostring(err)
+    for _, e in ipairs(KR.errors) do
+        if e.message == err then
+            e.count = e.count + 1
+            return
+        end
+    end
+    local first = #KR.errors == 0
+    table.insert(KR.errors, { message = err, count = 1, time = time() })
+    if #KR.errors > 20 then table.remove(KR.errors, 1) end
+    if first and DEFAULT_CHAT_FRAME then
+        DEFAULT_CHAT_FRAME:AddMessage(CHAT_TAG .. "something went wrong. If something isn't working, let an officer know.")
+    end
+end
+
+-- the error text plus where it happened (for /kr errors)
+local function Traceback(e)
+    local stack = debugstack and debugstack(2, 4, 0)
+    return tostring(e) .. (stack and ("\n" .. stack) or "")
+end
+
+function KR.Safe(fn, ...)
+    local n = select("#", ...)
+    local ok, result
+    if n == 0 then
+        -- timers and most events: no arguments to carry, so no extra table or function
+        ok, result = xpcall(fn, Traceback)
+    else
+        local args = { ... }
+        ok, result = xpcall(function() return fn(unpack(args, 1, n)) end, Traceback)
+    end
+    if not ok then
+        RecordError(result)
+        return nil
+    end
+    return result
+end
+
 -- game events --------------------------------------------------------------
 
 local eventFrame = CreateFrame("Frame")
@@ -50,7 +110,7 @@ eventFrame:SetScript("OnEvent", function(_, event, ...)
     local list = eventHandlers[event]
     if not list then return end
     for i = 1, #list do
-        list[i](...)
+        KR.Safe(list[i], ...)
     end
 end)
 
@@ -67,7 +127,7 @@ function KR:Fire(message, ...)
     local list = callbacks[message]
     if not list then return end
     for i = 1, #list do
-        list[i](...)
+        KR.Safe(list[i], ...)
     end
 end
 
@@ -75,9 +135,9 @@ end
 
 function KR:After(delay, fn)
     if C_Timer and C_Timer.After then
-        C_Timer.After(delay, fn)
+        C_Timer.After(delay, function() KR.Safe(fn) end)
     else
-        fn()
+        KR.Safe(fn)
     end
 end
 
@@ -118,23 +178,27 @@ end
 -- only returns "First". Every record is keyed by NameKey(): realm removed, separator
 -- normalised to a single space.
 
+-- "-Realm", worked out once the game knows the realm (NameKey runs for every roster entry and
+-- every addon message)
+local realmSuffix
+
 local function RealmSuffix()
+    if realmSuffix then return realmSuffix end
     local realm = GetNormalizedRealmName and GetNormalizedRealmName()
     if not realm or realm == "" then
         realm = string.gsub(GetRealmName() or "", "[%s%-']", "")
     end
-    return realm
+    if realm == "" then return nil end
+    realmSuffix = "-" .. realm
+    return realmSuffix
 end
 
 function KR.NameKey(name)
-    if type(name) ~= "string" then return nil end
+    if not KR.Text(name) then return nil end
     name = strtrim(name)
-    local realm = RealmSuffix()
-    if realm ~= "" then
-        local suffix = "-" .. realm
-        if #name > #suffix and string.sub(name, -#suffix) == suffix then
-            name = string.sub(name, 1, -#suffix - 1)
-        end
+    local suffix = RealmSuffix()
+    if suffix and #name > #suffix and string.sub(name, -#suffix) == suffix then
+        name = string.sub(name, 1, -#suffix - 1)
     end
     name = string.gsub(name, "[%s%-]+", " ")
     return name ~= "" and name or nil

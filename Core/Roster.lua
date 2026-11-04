@@ -18,7 +18,8 @@ function Roster:Request()
 end
 
 function Roster:Scan()
-    if not IsInGuild() or not KR.DB:GetGuild() then return end
+    local g = IsInGuild() and KR.DB:GetGuild()
+    if not g then return end
     KR.DB:ImportLegacy()
 
     local total = GetNumGuildMembers() or 0
@@ -31,33 +32,41 @@ function Roster:Scan()
     local canViewOfficer = (C_GuildInfo and C_GuildInfo.CanViewOfficerNote and C_GuildInfo.CanViewOfficerNote())
         or (CanViewOfficerNote and CanViewOfficerNote()) or false
 
+    -- a value the game hides keeps what we knew before (`old`)
+    local function Read(value, old)
+        if KR.Readable(value) then return value end
+        return old
+    end
+
     for i = 1, total do
         local fullName, rankName, rankIndex, level, _, zone, note, officerNote, online, _, classTag = GetGuildRosterInfo(i)
         local name = KR.NameKey(fullName)
         if name then
             listed = listed + 1
             seen[name] = true
+            local m = KR.DB:GetMember(name, true, g)
+            classTag, online = Read(classTag, m.class), Read(online, m.online)
             if KR.IsMe(name) then foundSelf = true end
             if online and classTag == myClass and KR.FirstName(name) == firstName then
                 selfCandidates[#selfCandidates + 1] = name
             end
 
-            local m = KR.DB:GetMember(name, true)
             m.class = classTag or m.class
-            m.level = level or m.level
+            m.level = Read(level, m.level) or m.level
             m.online = online and true or false
-            m.guildRank = rankName
-            m.guildRankIndex = rankIndex
-            m.zone = zone
-            m.note = note
-            m.officerNote = canViewOfficer and officerNote or nil
+            m.guildRank = Read(rankName, m.guildRank)
+            m.guildRankIndex = Read(rankIndex, m.guildRankIndex)
+            m.zone = Read(zone, m.zone)
+            m.note = Read(note, m.note)
+            m.officerNote = canViewOfficer and Read(officerNote, m.officerNote) or nil
             m.whisperTarget = fullName
             m.rosterName = fullName -- exact roster spelling, used for /gpromote and /gdemote
             if online then
                 m.lastOnline = now
             elseif GetGuildRosterLastOnline then
                 local years, months, days, hours = GetGuildRosterLastOnline(i)
-                if years then
+                -- (readable first: even testing a hidden value for nil throws)
+                if KR.Readable(years) and KR.Readable(months) and KR.Readable(days) and KR.Readable(hours) and years then
                     m.lastOnline = now - ((((years * 365) + (months * 30) + days) * 24) + hours) * 3600
                 end
             end
@@ -88,11 +97,13 @@ end
 -- Each player: { lead = member, chars = { members }, online, onlineChar, lastOnline }
 function Roster:GetPlayers()
     local groups, list = {}, {}
-    for name, m in KR.DB:IterateMembers() do
-        local key = (m.main and KR.DB:GetMember(m.main)) and m.main or name
+    local g = KR.DB:GetGuild()
+    if not g then return list, groups end
+    for name, m in pairs(g.members) do
+        local key = (m.main and KR.DB:GetMember(m.main, false, g)) and m.main or name
         local p = groups[key]
         if not p then
-            p = { lead = KR.DB:GetMember(key), chars = {}, online = false, lastOnline = 0 }
+            p = { lead = KR.DB:GetMember(key, false, g), chars = {}, online = false, lastOnline = 0 }
             groups[key] = p
             list[#list + 1] = p
         end

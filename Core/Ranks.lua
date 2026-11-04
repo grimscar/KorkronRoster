@@ -208,6 +208,8 @@ Comm:RegisterHandler("L", function(name, msg)
     for entry in string.gmatch(string.sub(msg, 3), "[^;]+") do
         local target, title, stamp = string.match(entry, "^(.-)=(.-)=(%d+)$")
         local m = target and KR.DB:GetMember(target)
+        -- (a relay of titles set earlier, so no "ranked below the sender" check: an officer
+        -- re-shares other officers' titles too)
         if m and StoreTitle(m, title, tonumber(stamp), name) then changed = true end
     end
     if changed then KR:Fire("DATA_UPDATED") end

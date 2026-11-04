@@ -78,10 +78,12 @@ local function OnFirstWorldEntry()
     end)
 
     if C_Timer and C_Timer.NewTicker then
-        C_Timer.NewTicker(60, function()
+        -- through Safe like every other timer: an error is kept for /kr errors, not lost
+        local function Tick()
             Roster:Request()
             Sync:ScheduleBroadcast()
-        end)
+        end
+        C_Timer.NewTicker(60, function() KR.Safe(Tick) end)
     end
 end
 

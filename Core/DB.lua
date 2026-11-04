@@ -151,9 +151,11 @@ function DB:GetGuild()
     return g, key
 end
 
-function DB:GetMember(name, create)
+-- g (optional): the guild table from GetGuild(), for callers looking up many members at once
+-- (each GetGuild() asks the game for the guild name again)
+function DB:GetMember(name, create, g)
     if not name then return nil end
-    local g = self:GetGuild()
+    g = g or self:GetGuild()
     if not g then return nil end
     local m = g.members[name]
     if not m and create then

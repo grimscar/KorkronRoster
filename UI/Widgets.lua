@@ -156,7 +156,7 @@ local function MenuButton(i)
     btn:SetScript("OnClick", function(self)
         local opt, pick = self.option, menu.onPick
         menu:Hide()
-        if opt and not opt.header and pick then pick(opt) end
+        if opt and not opt.header and pick then KR.Safe(pick, opt) end
     end)
     menu.buttons[i] = btn
     return btn

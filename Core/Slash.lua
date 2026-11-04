@@ -11,11 +11,22 @@ local function PrintHelp()
     DEFAULT_CHAT_FRAME:AddMessage(c .. "/kr sync|r - share your data and request the guild's")
     DEFAULT_CHAT_FRAME:AddMessage(c .. "/kr options|r - open the options panel")
     DEFAULT_CHAT_FRAME:AddMessage(c .. "/kr minimap|r - show or hide the minimap button")
-    DEFAULT_CHAT_FRAME:AddMessage(c .. "/kr settoday <n>|r, " .. c .. "/kr setweek <n>|r - correct your HK counts")
-    DEFAULT_CHAT_FRAME:AddMessage(c .. "/kr debug [on|off]|r - toggle debug messages")
     DEFAULT_CHAT_FRAME:AddMessage(c .. "/kr version|r - show who in the guild runs which version")
-    DEFAULT_CHAT_FRAME:AddMessage(c .. "/kr remove <name>|r - delete one roster entry")
-    DEFAULT_CHAT_FRAME:AddMessage(c .. "/kr purge|r - delete all stored data for this guild")
+    -- dev-only commands (settoday, setweek, debug, remove, purge, errors) work but stay unlisted
+end
+
+local function PrintErrors(arg)
+    if arg == "clear" then
+        wipe(KR.errors)
+        KR:Print("Errors cleared.")
+    elseif #KR.errors == 0 then
+        KR:Print("No errors this session.")
+    else
+        KR:Print("%s problem(s) this session:", #KR.errors)
+        for i, e in ipairs(KR.errors) do
+            KR:Print("|cffff6060%s.|r %s|cff808080 (x%s)|r", i, e.message, e.count)
+        end
+    end
 end
 
 local function SetDebug(on)
@@ -120,6 +131,8 @@ local function HandleCommand(msg)
         end
     elseif cmd == "purge" then
         StaticPopup_Show("KORKRON_ROSTER_PURGE")
+    elseif cmd == "errors" then
+        PrintErrors(arg)
     else
         PrintHelp()
     end
@@ -127,7 +140,7 @@ end
 
 SLASH_KORKRONROSTER1 = "/korkron"
 SLASH_KORKRONROSTER2 = "/kr"
-SlashCmdList["KORKRONROSTER"] = HandleCommand
+SlashCmdList["KORKRONROSTER"] = function(msg) KR.Safe(HandleCommand, msg) end
 
 -- 1.0 commands
 SLASH_KRHELP1 = "/krhelp"

@@ -12,8 +12,9 @@ local function AddCrafters(tooltip, itemID)
     if not entry then return end
 
     local online, offline = {}, {}
+    local g = KR.DB:GetGuild()
     for _, name in ipairs(entry.crafters) do
-        local m = KR.DB:GetMember(name)
+        local m = g and KR.DB:GetMember(name, false, g)
         local main = (m and m.main) and (" |cff9d9d9d(" .. m.main .. ")|r") or ""
         if m and m.online then
             online[#online + 1] = "|cff40ff40" .. name .. "|r" .. main

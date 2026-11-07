@@ -35,7 +35,7 @@ local function BuildRows()
         end
     end
     local rows = {}
-    for i, b in ipairs(BRACKETS) do
+    for i in ipairs(BRACKETS) do
         local entries = buckets[i]
         table.sort(entries, function(x, y)
             if x.away ~= y.away then return x.away > y.away end

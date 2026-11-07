@@ -76,6 +76,8 @@ local function OnFirstWorldEntry()
     KR:After(8 + math.random() * 7, function()
         if KR.db.settings.autoSync then Sync:RequestAll() end
     end)
+    -- once the login chat has settled
+    KR:After(20, function() Sync:RemindNewerVersion() end)
 
     if C_Timer and C_Timer.NewTicker then
         -- through Safe like every other timer: an error is kept for /kr errors, not lost

@@ -210,8 +210,8 @@ end
 
 function Recipes.GetIndex()
     if index then return index end
-    index = { list = {}, byItem = {} }
-    local byKey = {}
+    index = { list = {}, byItem = {}, byKey = {} }
+    local byKey = index.byKey
     for name, m in KR.DB:IterateMembers() do
         for prof, data in pairs(m.recipes or {}) do
             for _, r in ipairs(data.list or {}) do
@@ -231,4 +231,9 @@ function Recipes.GetIndex()
         table.sort(e.crafters)
     end
     return index
+end
+
+-- the index entry for one profession's recipe, or nil when nobody in the guild shares it
+function Recipes.Find(prof, name)
+    return Recipes.GetIndex().byKey[prof .. "\001" .. name]
 end

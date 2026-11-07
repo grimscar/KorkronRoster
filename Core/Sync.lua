@@ -20,10 +20,12 @@ local REQUEST_COOLDOWN = 30  -- seconds between our own Q broadcasts
 local RECIPE_COOLDOWN = 30   -- seconds before resending the same recipe list
 local BUFFER_TIMEOUT = 120   -- drop half-received recipe lists after this
 
+local UPDATE_URL = "https://github.com/grimscar/KorkronRoster"
+
 local lastProfileMsg, lastProfileTime = nil, -999
 local lastManifestSig
 local lastRequest = -999
-local notifiedVersion
+local toldVersion -- the newer version the player was told about this session
 
 local function Num(v)
     return tonumber(v) or 0
@@ -102,6 +104,7 @@ function Sync:RequestAll()
     Comm:Send("Q^" .. KR.PROTOCOL, "ALERT")
     Comm:Send("REQ", "ALERT") -- lets 1.0 users answer too
     self:SendProfile(true)
+    KR.WorkOrders.Request()
     return true
 end
 
@@ -173,6 +176,35 @@ local function QueueFetch(name, prof, hash)
     end)
 end
 
+-- new version notice ---------------------------------------------------------------
+-- The game can't see WowUp, so a guildmate's profile is how we learn a newer version is out. The
+-- newest one seen is remembered (KorkronRosterDB.newestSeen), so the reminder comes back at every
+-- login until the player updates, even when nobody running it is online.
+
+local function TellNewer(version)
+    if toldVersion == version then return end
+    toldVersion = version
+    KR:Print("version |cffffd100%s|r is out (you have %s): update it in WowUp, or get it from %s", version, KR.version, UPDATE_URL)
+end
+
+local function SeenVersion(version)
+    if KR.CompareVersions(version, KR.version) <= 0 then return end
+    if not KR.db.newestSeen or KR.CompareVersions(version, KR.db.newestSeen) > 0 then
+        KR.db.newestSeen = version
+    end
+    TellNewer(KR.db.newestSeen)
+end
+
+-- at login: remind about a newer version seen before, or forget it once updated
+function Sync:RemindNewerVersion()
+    local newest = KR.db.newestSeen
+    if newest and KR.CompareVersions(newest, KR.version) > 0 then
+        TellNewer(newest)
+    else
+        KR.db.newestSeen = nil
+    end
+end
+
 -- incoming -------------------------------------------------------------------------
 
 local function ApplyProfile(m, f)
@@ -218,11 +250,7 @@ Comm:RegisterHandler("P", function(name, msg, _, sender)
     m.version = f[3]
     m.lastSync = time()
     ApplyProfile(m, f)
-
-    if not notifiedVersion and KR.CompareVersions(m.version, KR.version) > 0 then
-        notifiedVersion = m.version
-        KR:Print("A newer version (|cffffd100%s|r) is in use by your guild. You have %s.", m.version, KR.version)
-    end
+    SeenVersion(m.version)
     KR:Fire("DATA_UPDATED")
 end)
 

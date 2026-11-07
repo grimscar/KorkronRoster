@@ -1,5 +1,16 @@
 # Changelog
 
+## 2.4.0
+- New **Work Orders** tab: request a craft from the guild. **New Work Order** opens a searchable list of everything your guildmates can make (from their shared recipe lists) with who can craft it and the reagents. Pick an item, set a quantity and an optional note, and post it.
+- Anyone else running the addon can claim an open order, and everyone sees who has it. Click an order to claim it, give it back, mark it complete once the items are traded or mailed, cancel it, or whisper the requester or crafter. Completing and cancelling ask first.
+- New **Completed** tab: the history of finished orders, with who asked and who crafted them, kept for 180 days.
+- The requester can cancel their own order. Officers and the Guild Master can cancel or release any order. Open orders nobody touches for 30 days expire.
+- Chat messages when someone posts an order you can craft, when your order is claimed or completed, and when an order you claimed is cancelled.
+- A Kor'kron tab on the side of the game's own guild window (J) opens the roster.
+- New command `/kr orders`.
+- When a guildmate runs a newer version, the chat message now says how to update (WowUp, or the GitHub page) and comes back at each login until you update, even when nobody running the new version is online.
+- The main window is a little wider to fit the new tabs.
+
 ## 2.3.3
 - Sturdier inside dungeons and raids: the game can hide some information from addons there. Kor'kron Roster now skips what it can't read instead of stopping, and a problem in one part no longer stops the rest. If something does go wrong, you'll see one short note in chat.
 - Fixed: "today" and "this week" for honorable kills now follow the realm's calendar instead of each player's own PC clock, so guildmates in other time zones no longer show 0 kills for part of the day.

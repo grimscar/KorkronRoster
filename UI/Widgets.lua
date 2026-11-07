@@ -254,6 +254,45 @@ function UI.ColoredName(m)
     return "|cff" .. KR.ClassColorHex(m.class) .. name .. "|r"
 end
 
+-- a recipe index entry's crafters as member records: online ones, then offline ones
+-- g (optional): the guild table, when checking many recipes at once
+function UI.CraftersSorted(e, g)
+    g = g or KR.DB:GetGuild()
+    local online, offline = {}, {}
+    for _, name in ipairs(e.crafters) do
+        local m = g and KR.DB:GetMember(name, false, g)
+        if m and m.online then online[#online + 1] = m else offline[#offline + 1] = m or { name = name } end
+    end
+    return online, offline
+end
+
+-- "Name, Name, Name": online crafters first in class colour, offline ones grey; with max, at
+-- most that many names and then "+N"
+function UI.CrafterList(e, max)
+    local online, offline = UI.CraftersSorted(e)
+    local names = {}
+    for _, m in ipairs(online) do names[#names + 1] = UI.ColoredName(m) end
+    for _, m in ipairs(offline) do names[#names + 1] = "|cff808080" .. m.name .. "|r" end
+    if max and #names > max then
+        return table.concat(names, ", ", 1, max) .. " |cffaaaaaa+" .. (#names - max) .. "|r"
+    end
+    return table.concat(names, ", ")
+end
+
+-- the item (or enchant) a recipe or work order makes
+function UI.ItemTooltip(owner, r)
+    GameTooltip:SetOwner(owner, "ANCHOR_RIGHT")
+    if r.itemID then
+        GameTooltip:SetItemByID(r.itemID)
+    elseif r.spellID and GameTooltip.SetSpellByID then
+        GameTooltip:SetSpellByID(r.spellID)
+    else
+        GameTooltip:AddLine(r.name, 1, 0.82, 0)
+    end
+    GameTooltip:AddLine("Shift-click to link in chat", 0, 1, 0)
+    GameTooltip:Show()
+end
+
 -- roster label: "Alt Name (Main Name)" for alts that have announced a main
 function UI.DisplayName(m)
     local text = UI.ColoredName(m)

@@ -8,6 +8,7 @@ local function PrintHelp()
     DEFAULT_CHAT_FRAME:AddMessage(c .. "/kr roster|r, " .. c .. "/kr prof|r, " .. c .. "/kr pvp|r, " .. c .. "/kr recipes|r - open a specific tab")
     DEFAULT_CHAT_FRAME:AddMessage(c .. "/kr inactive|r - inactivity report")
     DEFAULT_CHAT_FRAME:AddMessage(c .. "/kr find <text>|r - search the guild's recipes")
+    DEFAULT_CHAT_FRAME:AddMessage(c .. "/kr orders|r - work orders: request crafts from the guild, or claim one")
     DEFAULT_CHAT_FRAME:AddMessage(c .. "/kr sync|r - share your data and request the guild's")
     DEFAULT_CHAT_FRAME:AddMessage(c .. "/kr options|r - open the options panel")
     DEFAULT_CHAT_FRAME:AddMessage(c .. "/kr minimap|r - show or hide the minimap button")
@@ -72,6 +73,8 @@ local function HandleCommand(msg)
     elseif cmd == "recipes" or cmd == "find" or cmd == "craft" then
         KR.UI.Main:Show("RECIPES")
         if arg ~= "" and KorkronRosterSearchBox then KorkronRosterSearchBox:SetText(arg) end
+    elseif cmd == "orders" or cmd == "order" or cmd == "wo" then
+        KR.UI.Main:Show("ORDERS")
     elseif cmd == "sync" then
         KR.Roster:Request()
         if KR.Sync:RequestAll() then

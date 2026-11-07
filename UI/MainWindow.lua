@@ -1,4 +1,4 @@
--- Kor'kron Roster: the main roster window (Professions, PvP and Recipes tabs).
+-- Kor'kron Roster: the main roster window (Roster, Professions, PvP, Recipes and Work Orders tabs).
 local _, KR = ...
 
 local UI = KR.UI
@@ -7,7 +7,8 @@ UI.Main = Main
 
 local ROW_HEIGHT = 20
 local MAX_COLUMNS = 8
-local FRAME_WIDTH = 900
+local FRAME_WIDTH = 980
+local TAB_WIDTH = 90
 local CLASS_COORDS = KR.CLASS_ICON_TCOORDS
 
 local frame, list
@@ -154,16 +155,7 @@ local RANK_COLUMN = {
 
 -- recipes tab --------------------------------------------------------------------------
 
--- g (optional): the guild table, when checking many recipes at once
-local function CraftersSorted(e, g)
-    g = g or KR.DB:GetGuild()
-    local online, offline = {}, {}
-    for _, name in ipairs(e.crafters) do
-        local m = g and KR.DB:GetMember(name, false, g)
-        if m and m.online then online[#online + 1] = m else offline[#offline + 1] = m or { name = name } end
-    end
-    return online, offline
-end
+local CraftersSorted = UI.CraftersSorted
 
 local function RecipeLink(e)
     return KR.Recipes.Link(e.recipe)
@@ -176,19 +168,7 @@ local RECIPE_COLUMNS = {
         render = function(cell, e)
             UI.SetCell(cell, "LEFT", "|cffffd100" .. e.recipe.name .. "|r", KR.Recipes.Icon(e.recipe))
         end,
-        tooltip = function(cell, e)
-            GameTooltip:SetOwner(cell, "ANCHOR_RIGHT")
-            local r = e.recipe
-            if r.itemID then
-                GameTooltip:SetItemByID(r.itemID)
-            elseif r.spellID and GameTooltip.SetSpellByID then
-                GameTooltip:SetSpellByID(r.spellID)
-            else
-                GameTooltip:AddLine(r.name, 1, 0.82, 0)
-            end
-            GameTooltip:AddLine("Shift-click to link in chat", 0, 1, 0)
-            GameTooltip:Show()
-        end,
+        tooltip = function(cell, e) UI.ItemTooltip(cell, e.recipe) end,
         click = function(cell, e)
             if IsModifiedClick and IsModifiedClick("CHATLINK") then UI.InsertLink(RecipeLink(e)) end
         end,
@@ -235,6 +215,167 @@ local RECIPE_COLUMNS = {
         end,
     },
 }
+
+-- work orders and completed tabs --------------------------------------------------------------
+
+local ORDER_ACTIONS = {
+    { id = "claim", label = "Claim this order" },
+    { id = "release", label = "Release the claim" },
+    { id = "complete", label = "Mark complete (items sent)",
+      confirm = "Mark the work order for %s complete?\n\nDo this once the items have been traded or mailed." },
+    { id = "cancel", label = "Cancel the order", confirm = "Cancel the work order for %s?" },
+}
+
+-- completing and cancelling are final, so they ask first
+StaticPopupDialogs["KORKRON_WORK_ORDER"] = {
+    text = "%s",
+    button1 = YES,
+    button2 = NO,
+    OnAccept = function(_, data) KR.Safe(KR.WorkOrders.Do, data.order, data.action) end,
+    timeout = 0,
+    whileDead = true,
+    hideOnEscape = true,
+    preferredIndex = 3,
+}
+
+local function ShowOrderMenu(anchor, o)
+    local options = { { header = o.name .. " x" .. o.qty } }
+    for _, a in ipairs(ORDER_ACTIONS) do
+        if KR.WorkOrders.Can(o, a.id) then options[#options + 1] = { label = a.label, action = a } end
+    end
+    for _, name in ipairs({ o.requester, o.claimer }) do
+        local m = not KR.IsMe(name) and KR.DB:GetMember(name)
+        if m then options[#options + 1] = { label = "Whisper " .. name, whisper = m } end
+    end
+    if #options == 1 then return end
+    UI.ShowMenu(anchor, options, function(opt)
+        if opt.whisper then
+            UI.Whisper(opt.whisper)
+        elseif opt.action.confirm then
+            StaticPopup_Show("KORKRON_WORK_ORDER", string.format(opt.action.confirm, o.name), nil,
+                { order = o, action = opt.action.id })
+        else
+            KR.WorkOrders.Do(o, opt.action.id)
+        end
+    end, 220)
+end
+
+local function OrderClick(cell, o)
+    if IsModifiedClick and IsModifiedClick("CHATLINK") then
+        UI.InsertLink(KR.Recipes.Link(o))
+    else
+        ShowOrderMenu(cell, o)
+    end
+end
+
+-- someone named on an order, class-coloured like the roster when they're still in the guild
+local function PersonText(name)
+    local m = name and guild and KR.DB:GetMember(name, false, guild)
+    return m and UI.ColoredName(m) or ("|cff808080" .. (name or "") .. "|r")
+end
+
+local function OrderTooltip(cell, o)
+    GameTooltip:SetOwner(cell, "ANCHOR_RIGHT")
+    GameTooltip:AddLine(o.name .. " x" .. o.qty, 1, 0.82, 0)
+    GameTooltip:AddLine(o.prof, 0.8, 0.8, 0.8)
+    GameTooltip:AddLine("Requested by " .. o.requester .. ", " .. KR.FormatAgo(o.created), 1, 1, 1)
+    if o.status == "done" then
+        GameTooltip:AddLine("Crafted by " .. o.claimer .. ", completed " .. KR.FormatAgo(o.stamp), 1, 1, 1)
+    elseif o.claimer then
+        GameTooltip:AddLine("Claimed by " .. o.claimer, 1, 0.82, 0)
+    end
+    if o.note ~= "" then GameTooltip:AddLine("Note: " .. o.note, 0.9, 0.9, 0.7, true) end
+    local e = o.status ~= "done" and KR.Recipes.Find(o.prof, o.name)
+    if e then GameTooltip:AddLine("Crafters: " .. UI.CrafterList(e), 0.6, 0.8, 1, true) end
+    GameTooltip:AddLine("Click for options, shift-click to link in chat", 0, 1, 0)
+    GameTooltip:Show()
+end
+
+local ORDER_ITEM_COLUMN = {
+    id = "item", title = "Item", width = 220, asc = true,
+    sortValue = function(o) return Lower(o.name) end,
+    render = function(cell, o) UI.SetCell(cell, "LEFT", "|cffffd100" .. o.name .. "|r", KR.Recipes.Icon(o)) end,
+    tooltip = UI.ItemTooltip,
+    click = OrderClick,
+}
+
+local ORDER_QTY_COLUMN = {
+    id = "qty", title = "Qty", width = 36, align = "CENTER",
+    sortValue = function(o) return o.qty end,
+    render = function(cell, o) UI.SetCell(cell, "CENTER", tostring(o.qty)) end,
+    tooltip = OrderTooltip,
+    click = OrderClick,
+}
+
+local ORDER_PROF_COLUMN = {
+    id = "prof", title = "Profession", width = 120, asc = true,
+    sortValue = function(o) return Lower(o.prof) end,
+    render = function(cell, o) UI.SetCell(cell, "LEFT", o.prof, KR.ProfIcon(o.prof)) end,
+    tooltip = OrderTooltip,
+    click = OrderClick,
+}
+
+local function PersonColumn(field, title)
+    return {
+        id = field, title = title, width = 150, asc = true,
+        sortValue = function(o) return Lower(o[field]) end,
+        render = function(cell, o) UI.SetCell(cell, "LEFT", PersonText(o[field])) end,
+        tooltip = OrderTooltip,
+        click = OrderClick,
+    }
+end
+
+local ORDER_STATUS_COLUMN = {
+    id = "status", title = "Status", width = 170, asc = true,
+    sortValue = function(o) return o.status .. Lower(o.claimer) end,
+    render = function(cell, o)
+        if o.claimer then
+            UI.SetCell(cell, "LEFT", "|cffffd100Claimed|r by " .. PersonText(o.claimer))
+        else
+            UI.SetCell(cell, "LEFT", "|cff40ff40Open|r")
+        end
+    end,
+    tooltip = OrderTooltip,
+    click = OrderClick,
+}
+
+local function TimeColumn(field, title)
+    return {
+        id = field, title = title, width = 80, align = "CENTER",
+        sortValue = function(o) return o[field] end,
+        render = function(cell, o) UI.SetCell(cell, "CENTER", "|cffaaaaaa" .. KR.FormatAgo(o[field]) .. "|r") end,
+        tooltip = OrderTooltip,
+        click = OrderClick,
+    }
+end
+
+local ORDER_NOTE_COLUMN = {
+    id = "note", title = "Note", width = 140, asc = true,
+    sortValue = function(o) return Lower(o.note) end,
+    render = function(cell, o) UI.SetCell(cell, "LEFT", "|cffdddddd" .. o.note .. "|r") end,
+    tooltip = OrderTooltip,
+    click = OrderClick,
+}
+
+local function OrderMatches(o)
+    if searchText == "" then return true end
+    for _, text in ipairs({ o.name, o.prof, o.requester, o.claimer or "", o.note }) do
+        if string.find(Lower(text), searchText, 1, true) then return true end
+    end
+    return false
+end
+
+local function OrderItems(finished)
+    local out = {}
+    for _, o in ipairs(KR.WorkOrders.List(finished)) do
+        if OrderMatches(o) then out[#out + 1] = o end
+    end
+    return out
+end
+
+local function OrderTiebreak(a, b)
+    return a.id < b.id
+end
 
 -- tab definitions ----------------------------------------------------------------------
 
@@ -460,6 +601,27 @@ local TABS = {
         end,
         tiebreak = function(a, b) return Lower(a.recipe.name) < Lower(b.recipe.name) end,
     },
+    {
+        id = "ORDERS", label = "Work Orders", title = "Guild Work Orders",
+        columns = {
+            ORDER_ITEM_COLUMN, ORDER_QTY_COLUMN, ORDER_PROF_COLUMN, PersonColumn("requester", "Requested by"),
+            ORDER_STATUS_COLUMN, TimeColumn("created", "Posted"), ORDER_NOTE_COLUMN,
+        },
+        defaultSort = { key = "created", asc = false },
+        items = function() return OrderItems(false) end,
+        tiebreak = OrderTiebreak,
+        orderTools = true,
+    },
+    {
+        id = "COMPLETED", label = "Completed", title = "Completed Work Orders",
+        columns = {
+            ORDER_ITEM_COLUMN, ORDER_QTY_COLUMN, ORDER_PROF_COLUMN, PersonColumn("requester", "Requested by"),
+            PersonColumn("claimer", "Crafted by"), TimeColumn("stamp", "Completed"), ORDER_NOTE_COLUMN,
+        },
+        defaultSort = { key = "stamp", asc = false },
+        items = function() return OrderItems(true) end,
+        tiebreak = OrderTiebreak,
+    },
 }
 
 local function CurrentTab()
@@ -572,6 +734,7 @@ local function UpdateHeaders()
     frame.mainsOnly:SetShown(tab.rosterTools and true or false)
     frame.mainsOnly.label:SetShown(tab.rosterTools and true or false)
     frame.inactivity:SetShown(tab.rosterTools and true or false)
+    frame.newOrder:SetShown(tab.orderTools and true or false)
     frame.title:SetText("|cffc41f3bKor'kron|r - " .. tab.title)
 end
 
@@ -659,7 +822,7 @@ local function Build()
     local prev
     for _, tab in ipairs(TABS) do
         local btn = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
-        btn:SetSize(100, 22)
+        btn:SetSize(TAB_WIDTH, 22)
         if prev then
             btn:SetPoint("LEFT", prev, "RIGHT", 4, 0)
         else
@@ -706,7 +869,7 @@ local function Build()
 
     -- sync
     local sync = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
-    sync:SetSize(100, 22)
+    sync:SetSize(90, 22)
     sync:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -12, -30)
     sync:SetText("Sync Guild")
     sync:SetScript("OnClick", function()
@@ -784,6 +947,21 @@ local function Build()
     inactivity:SetScript("OnLeave", function() GameTooltip:Hide() end)
     frame.inactivity = inactivity
 
+    -- work orders tab tool, same corner
+    local newOrder = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
+    newOrder:SetSize(140, 22)
+    newOrder:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -24, 6)
+    newOrder:SetText("New Work Order")
+    newOrder:SetScript("OnClick", function() UI.WorkOrderForm:Open() end)
+    newOrder:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_TOP")
+        GameTooltip:AddLine("New work order")
+        GameTooltip:AddLine("Pick something a guildmate can craft and post a request for it. Anyone running Kor'kron Roster can claim it.", 1, 1, 1, true)
+        GameTooltip:Show()
+    end)
+    newOrder:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    frame.newOrder = newOrder
+
     local mains = CreateFrame("CheckButton", nil, frame, "UICheckButtonTemplate")
     mains:SetSize(24, 24)
     mains.label = mains:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
@@ -819,7 +997,8 @@ local function Build()
         Main:Refresh()
     end)
     frame:SetScript("OnHide", function()
-        if UI.Inspector then UI.Inspector:Hide() end
+        UI.Inspector:Hide()
+        UI.WorkOrderForm:Hide()
     end)
 end
 

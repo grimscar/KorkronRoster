@@ -4,6 +4,7 @@
 --   settings            user options
 --   chars[Name-Realm]   your own characters (source of truth for what you broadcast)
 --   guilds[Guild-Realm] .members[Name] = member record, one table per guild
+--                       .orders[id] = work order (see WorkOrders.lua)
 local _, KR = ...
 
 local DB = {}

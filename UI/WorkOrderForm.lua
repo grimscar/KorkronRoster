@@ -1,5 +1,6 @@
 -- Kor'kron Roster: the "New Work Order" window. A searchable list of everything the guild can craft
--- (from the shared recipe lists): pick an item, set how many and a note, and post the order.
+-- (from the shared recipe lists): pick an item, set how many, who provides the materials and a
+-- note, and post the order.
 local _, KR = ...
 
 local UI = KR.UI
@@ -9,8 +10,14 @@ UI.WorkOrderForm = Form
 local ROW_HEIGHT = 20
 local MAX_CRAFTERS = 8 -- names shown before "+N"
 
+local MATS_CHOICES = {
+    { value = "requester", label = "I'll provide the materials" },
+    { value = "crafter", label = "The crafter provides them" },
+}
+
 local frame, list, detail
 local selected -- an entry of the guild's recipe index
+local mats     -- who provides the materials: "requester" or "crafter", nil until the requester picks
 local searchText = ""
 
 local function Lower(s)
@@ -36,7 +43,7 @@ end
 local function ShowSelected()
     local e = selected
     detail.icon:SetShown(e ~= nil)
-    if e then frame.submit:Enable() else frame.submit:Disable() end
+    if e and mats then frame.submit:Enable() else frame.submit:Disable() end
     if not e then
         detail.name:SetText("Pick an item")
         if #list.items == 0 and searchText == "" then
@@ -56,13 +63,14 @@ local function ShowSelected()
     detail.name:SetText(r.name)
     detail.prof:SetText(e.prof)
     detail.crafters:SetText("|cffffd100Crafters:|r " .. UI.CrafterList(e, MAX_CRAFTERS))
-    local lines = {}
-    for _, rg in ipairs(r.reagents or {}) do
-        UI.PrimeItem(rg.itemID)
-        local name = KR.Recipes.ItemInfo(rg.itemID) or rg.name or ("Item #" .. (rg.itemID or "?"))
-        lines[#lines + 1] = (rg.count or 1) .. "x " .. name
-    end
+    local lines = UI.ReagentLines(r, 1)
     detail.reagents:SetText(#lines > 0 and ("|cffffd100Reagents for one:|r\n" .. table.concat(lines, "\n")) or "")
+end
+
+local function ChooseMats(value)
+    mats = value
+    for v, box in pairs(frame.mats) do box:SetChecked(v == mats) end
+    ShowSelected()
 end
 
 local function Submit()
@@ -72,7 +80,7 @@ local function Submit()
         KR:Print("The quantity has to be 1 to %s.", KR.WorkOrders.MAX_QTY)
         return
     end
-    if KR.WorkOrders.Create(selected, qty, frame.note:GetText()) then
+    if KR.WorkOrders.Create(selected, qty, mats, frame.note:GetText()) then
         frame:Hide()
         UI.Main:Show("ORDERS")
     end
@@ -178,6 +186,20 @@ local function BuildDetail(left)
     detail.reagents:SetPoint("RIGHT", -10, 0)
     detail.reagents:SetSpacing(2)
 
+    -- no default: every requester says who provides the materials
+    local matsLabel = Label(detail, "GameFontNormalSmall", "Materials:")
+    matsLabel:SetPoint("BOTTOMLEFT", 16, 128)
+    frame.mats = {}
+    for i, choice in ipairs(MATS_CHOICES) do
+        local box = CreateFrame("CheckButton", nil, detail, "UICheckButtonTemplate")
+        box:SetSize(24, 24)
+        box:SetPoint("BOTTOMLEFT", 80, 122 - (i - 1) * 22)
+        box.label = Label(box, "GameFontHighlightSmall", choice.label)
+        box.label:SetPoint("LEFT", box, "RIGHT", 2, 0)
+        box:SetScript("OnClick", function() ChooseMats(choice.value) end)
+        frame.mats[choice.value] = box
+    end
+
     local qtyLabel = Label(detail, "GameFontNormalSmall", "Quantity:")
     qtyLabel:SetPoint("BOTTOMLEFT", 16, 74)
     frame.qty = EditBox("KorkronWorkOrderQty", detail, 34, 2)
@@ -188,7 +210,7 @@ local function BuildDetail(left)
     noteLabel:SetPoint("BOTTOMLEFT", 16, 46)
     frame.note = EditBox("KorkronWorkOrderNote", detail, 190, KR.WorkOrders.MAX_NOTE)
     frame.note:SetPoint("LEFT", noteLabel, "LEFT", 70, 0)
-    frame.note.placeholder = Label(frame.note, "GameFontDisableSmall", "e.g. I'll mail the mats")
+    frame.note.placeholder = Label(frame.note, "GameFontDisableSmall", "e.g. needed by Friday")
     frame.note.placeholder:SetPoint("LEFT", 2, 0)
     frame.note:SetScript("OnTextChanged", function(self)
         self.placeholder:SetShown(self:GetText() == "" and not self:HasFocus())
@@ -275,6 +297,7 @@ function Form:Open()
     frame.note:SetText("")
     frame:Show()
     frame:Raise()
+    ChooseMats(nil)
     self:Refresh()
 end
 

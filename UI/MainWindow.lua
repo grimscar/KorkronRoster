@@ -218,60 +218,14 @@ local RECIPE_COLUMNS = {
 
 -- work orders and completed tabs --------------------------------------------------------------
 
-local ORDER_ACTIONS = {
-    { id = "claim", label = "Claim this order" },
-    { id = "release", label = "Release the claim" },
-    { id = "complete", label = "Mark complete (items sent)",
-      confirm = "Mark the work order for %s complete?\n\nDo this once the items have been traded or mailed." },
-    { id = "cancel", label = "Cancel the order", confirm = "Cancel the work order for %s?" },
-}
+local MATS_TEXT = { requester = "|cff40ff40Requester|r", crafter = "|cffff9933Crafter|r" }
 
--- completing and cancelling are final, so they ask first
-StaticPopupDialogs["KORKRON_WORK_ORDER"] = {
-    text = "%s",
-    button1 = YES,
-    button2 = NO,
-    OnAccept = function(_, data) KR.Safe(KR.WorkOrders.Do, data.order, data.action) end,
-    timeout = 0,
-    whileDead = true,
-    hideOnEscape = true,
-    preferredIndex = 3,
-}
-
-local function ShowOrderMenu(anchor, o)
-    local options = { { header = o.name .. " x" .. o.qty } }
-    for _, a in ipairs(ORDER_ACTIONS) do
-        if KR.WorkOrders.Can(o, a.id) then options[#options + 1] = { label = a.label, action = a } end
-    end
-    for _, name in ipairs({ o.requester, o.claimer }) do
-        local m = not KR.IsMe(name) and KR.DB:GetMember(name)
-        if m then options[#options + 1] = { label = "Whisper " .. name, whisper = m } end
-    end
-    if #options == 1 then return end
-    UI.ShowMenu(anchor, options, function(opt)
-        if opt.whisper then
-            UI.Whisper(opt.whisper)
-        elseif opt.action.confirm then
-            StaticPopup_Show("KORKRON_WORK_ORDER", string.format(opt.action.confirm, o.name), nil,
-                { order = o, action = opt.action.id })
-        else
-            KR.WorkOrders.Do(o, opt.action.id)
-        end
-    end, 220)
-end
-
-local function OrderClick(cell, o)
+local function OrderClick(_, o)
     if IsModifiedClick and IsModifiedClick("CHATLINK") then
         UI.InsertLink(KR.Recipes.Link(o))
     else
-        ShowOrderMenu(cell, o)
+        UI.WorkOrderCard:Open(o)
     end
-end
-
--- someone named on an order, class-coloured like the roster when they're still in the guild
-local function PersonText(name)
-    local m = name and guild and KR.DB:GetMember(name, false, guild)
-    return m and UI.ColoredName(m) or ("|cff808080" .. (name or "") .. "|r")
 end
 
 local function OrderTooltip(cell, o)
@@ -279,20 +233,24 @@ local function OrderTooltip(cell, o)
     GameTooltip:AddLine(o.name .. " x" .. o.qty, 1, 0.82, 0)
     GameTooltip:AddLine(o.prof, 0.8, 0.8, 0.8)
     GameTooltip:AddLine("Requested by " .. o.requester .. ", " .. KR.FormatAgo(o.created), 1, 1, 1)
-    if o.status == "done" then
+    local finished = KR.WorkOrders.IsFinished(o)
+    if finished then
         GameTooltip:AddLine("Crafted by " .. o.claimer .. ", completed " .. KR.FormatAgo(o.stamp), 1, 1, 1)
+    elseif o.status == "sent" then
+        GameTooltip:AddLine("Sent by " .. o.claimer .. ", waiting for the requester to confirm", 1, 0.6, 0.2, true)
     elseif o.claimer then
         GameTooltip:AddLine("Claimed by " .. o.claimer, 1, 0.82, 0)
     end
+    if o.mats then GameTooltip:AddLine("Materials from the " .. o.mats, 0.9, 0.9, 0.7) end
     if o.note ~= "" then GameTooltip:AddLine("Note: " .. o.note, 0.9, 0.9, 0.7, true) end
-    local e = o.status ~= "done" and KR.Recipes.Find(o.prof, o.name)
+    local e = not finished and KR.Recipes.Find(o.prof, o.name)
     if e then GameTooltip:AddLine("Crafters: " .. UI.CrafterList(e), 0.6, 0.8, 1, true) end
-    GameTooltip:AddLine("Click for options, shift-click to link in chat", 0, 1, 0)
+    GameTooltip:AddLine("Click to open the order, shift-click to link in chat", 0, 1, 0)
     GameTooltip:Show()
 end
 
 local ORDER_ITEM_COLUMN = {
-    id = "item", title = "Item", width = 220, asc = true,
+    id = "item", title = "Item", width = 200, asc = true,
     sortValue = function(o) return Lower(o.name) end,
     render = function(cell, o) UI.SetCell(cell, "LEFT", "|cffffd100" .. o.name .. "|r", KR.Recipes.Icon(o)) end,
     tooltip = UI.ItemTooltip,
@@ -300,7 +258,7 @@ local ORDER_ITEM_COLUMN = {
 }
 
 local ORDER_QTY_COLUMN = {
-    id = "qty", title = "Qty", width = 36, align = "CENTER",
+    id = "qty", title = "Qty", width = 32, align = "CENTER",
     sortValue = function(o) return o.qty end,
     render = function(cell, o) UI.SetCell(cell, "CENTER", tostring(o.qty)) end,
     tooltip = OrderTooltip,
@@ -308,18 +266,26 @@ local ORDER_QTY_COLUMN = {
 }
 
 local ORDER_PROF_COLUMN = {
-    id = "prof", title = "Profession", width = 120, asc = true,
+    id = "prof", title = "Profession", width = 110, asc = true,
     sortValue = function(o) return Lower(o.prof) end,
     render = function(cell, o) UI.SetCell(cell, "LEFT", o.prof, KR.ProfIcon(o.prof)) end,
     tooltip = OrderTooltip,
     click = OrderClick,
 }
 
+local ORDER_MATS_COLUMN = {
+    id = "mats", title = "Mats by", width = 70, asc = true,
+    sortValue = function(o) return o.mats or "" end,
+    render = function(cell, o) UI.SetCell(cell, "LEFT", MATS_TEXT[o.mats] or "|cff555555-|r") end,
+    tooltip = OrderTooltip,
+    click = OrderClick,
+}
+
 local function PersonColumn(field, title)
     return {
-        id = field, title = title, width = 150, asc = true,
+        id = field, title = title, width = 140, asc = true,
         sortValue = function(o) return Lower(o[field]) end,
-        render = function(cell, o) UI.SetCell(cell, "LEFT", PersonText(o[field])) end,
+        render = function(cell, o) UI.SetCell(cell, "LEFT", UI.PersonText(o[field], guild)) end,
         tooltip = OrderTooltip,
         click = OrderClick,
     }
@@ -329,8 +295,10 @@ local ORDER_STATUS_COLUMN = {
     id = "status", title = "Status", width = 170, asc = true,
     sortValue = function(o) return o.status .. Lower(o.claimer) end,
     render = function(cell, o)
-        if o.claimer then
-            UI.SetCell(cell, "LEFT", "|cffffd100Claimed|r by " .. PersonText(o.claimer))
+        if o.status == "sent" then
+            UI.SetCell(cell, "LEFT", "|cffff9933Sent|r by " .. UI.PersonText(o.claimer, guild))
+        elseif o.claimer then
+            UI.SetCell(cell, "LEFT", "|cffffd100Claimed|r by " .. UI.PersonText(o.claimer, guild))
         else
             UI.SetCell(cell, "LEFT", "|cff40ff40Open|r")
         end
@@ -341,7 +309,7 @@ local ORDER_STATUS_COLUMN = {
 
 local function TimeColumn(field, title)
     return {
-        id = field, title = title, width = 80, align = "CENTER",
+        id = field, title = title, width = 70, align = "CENTER",
         sortValue = function(o) return o[field] end,
         render = function(cell, o) UI.SetCell(cell, "CENTER", "|cffaaaaaa" .. KR.FormatAgo(o[field]) .. "|r") end,
         tooltip = OrderTooltip,
@@ -350,7 +318,7 @@ local function TimeColumn(field, title)
 end
 
 local ORDER_NOTE_COLUMN = {
-    id = "note", title = "Note", width = 140, asc = true,
+    id = "note", title = "Note", width = 112, asc = true,
     sortValue = function(o) return Lower(o.note) end,
     render = function(cell, o) UI.SetCell(cell, "LEFT", "|cffdddddd" .. o.note .. "|r") end,
     tooltip = OrderTooltip,
@@ -605,7 +573,7 @@ local TABS = {
         id = "ORDERS", label = "Work Orders", title = "Guild Work Orders",
         columns = {
             ORDER_ITEM_COLUMN, ORDER_QTY_COLUMN, ORDER_PROF_COLUMN, PersonColumn("requester", "Requested by"),
-            ORDER_STATUS_COLUMN, TimeColumn("created", "Posted"), ORDER_NOTE_COLUMN,
+            ORDER_MATS_COLUMN, ORDER_STATUS_COLUMN, TimeColumn("created", "Posted"), ORDER_NOTE_COLUMN,
         },
         defaultSort = { key = "created", asc = false },
         items = function() return OrderItems(false) end,
@@ -999,6 +967,7 @@ local function Build()
     frame:SetScript("OnHide", function()
         UI.Inspector:Hide()
         UI.WorkOrderForm:Hide()
+        UI.WorkOrderCard:Hide()
     end)
 end
 

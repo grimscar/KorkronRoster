@@ -7,7 +7,7 @@ A guild roster for **World of Warcraft: Forever** (Interface 16001) that shares 
 - **Roster tab**: rank, location, last seen and notes. Turn on **Mains only** to fold alts into their main and see how many unique players the guild has. The **Inactivity** report groups players by when they were last on.
 - **Professions tab**: every guildmate's two main professions plus Fishing, Cooking and First Aid. Blue entries have a shared recipe list; click one to browse it.
 - **Recipes tab**: every recipe known in the guild and who can craft it, with online crafters first. Click to whisper a crafter with a ready-made "Could you craft [item] for me?", or right-click to open their recipe list.
-- **Work Orders tab**: ask the guild for a craft. **New Work Order** opens a searchable list of everything your guildmates can make; pick an item, set how many, add a short note (like "I'll mail the mats") and post it. Anyone else running the addon can click the order to **claim** it, so everyone sees who's on it. Once the items are traded or mailed, the requester or the crafter marks it **complete**.
+- **Work Orders tab**: ask the guild for a craft. **New Work Order** opens a searchable list of everything your guildmates can make; pick an item, set how many, say whether you'll provide the materials or the crafter should, add a short note if you like and post it. Anyone else running the addon can click the order to **claim** it, so everyone sees who's on it. When the crafter trades or mails the items, the order is marked **sent**, and the requester **confirms** they have them. Trades and mail are noticed for you.
 - **Completed tab**: finished work orders, who asked and who crafted them (kept for 180 days).
 - **Item tooltips**: any item a guildmate can craft shows a *Guild crafters* line.
 - **PvP tab**: rank, today's and this week's HKs, weekly honor and lifetime HKs. Daily and weekly numbers reset automatically; the reset weekday can be changed in the options.
@@ -18,9 +18,12 @@ A guild roster for **World of Warcraft: Forever** (Interface 16001) that shares 
 
 ### Work orders in detail
 
-- Click an order for what you can do with it: claim it, give a claim back, mark it complete, cancel it, or whisper the requester or crafter. Completing and cancelling ask first, since they can't be undone.
+- Click an order to open its card: the item, who asked and who's crafting it, who provides the materials and how many are needed for the whole order, and the note. Its buttons claim the order, give a claim back, mark it sent (the crafter), confirm you have it (the requester) or cancel it. All but claiming and giving back ask first.
+- **Trades and mail are tracked for you.** When the crafter trades the requester the ordered items, the order is marked sent and confirmed in one go. When the crafter mails them, it's marked sent as the mail goes out and confirmed once it shows up in the requester's mailbox (cash on delivery counts after it's paid). Enchants done through the trade window's "Will not be traded" slot count too. One trade or mail has to hold the whole order; otherwise use the buttons.
+- A sent order the requester never confirms moves to Completed after 7 days.
+- Once an order is claimed, its card has ready-made whispers between the requester and the crafter: asking for the materials (or saying you'll get them yourself), saying it's ready, saying the materials are on the way, or asking how it's going. They go into your chat box with the item linked, so you can change them before pressing Enter.
 - The requester can cancel their own order. Officers and the Guild Master can cancel or release any order, to tidy up stale ones.
-- You get a chat message when someone posts an order one of your characters can craft, when your order is claimed or completed, and when an order you claimed is cancelled.
+- You get a chat message when someone posts an order one of your characters can craft, when your order is claimed or sent, when the requester confirms an order you crafted, and when an order you claimed is cancelled. Sent orders waiting for you to confirm are mentioned again when you log in. Click the name in a message to whisper them.
 - Open orders nobody touches for 30 days expire.
 - Orders sync like everything else: you see changes as they happen, and when you log in you catch up on what you missed.
 

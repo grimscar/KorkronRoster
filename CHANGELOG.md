@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.5.0
+- New work orders ask who provides the materials: you, or the crafter. The Work Orders tab shows the answer in a new **Mats by** column.
+- Clicking an order opens its own card: the item, who asked and who's crafting it, who provides the materials and how many are needed for the whole order, the note, and buttons to claim, give back, mark sent, confirm or cancel it.
+- Work orders finish in two steps: the crafter marks the order **sent**, then the requester **confirms** they have the items and it moves to Completed. Sent orders waiting for you are mentioned when you log in, and one nobody confirms moves to Completed after 7 days.
+- Trades and mail are tracked for you. Trading the requester the ordered items (or putting the enchant on their item) marks the order sent and confirmed in one go. Mailing them marks it sent, and it's confirmed when the mail shows up in the requester's mailbox.
+- Once an order is claimed, its card has ready-made whispers between the requester and the crafter: ask for the materials or say you'll get them yourself, say it's ready, say the materials are on the way, or ask how it's going. They go into your chat box with the item linked, so you can change them before pressing Enter.
+- Names in work order chat messages can be clicked to whisper that person.
+- Guildmates still on 2.4.0 can keep using work orders with you. Until they update, they don't see the materials answer, and a sent order shows as claimed until it's confirmed.
+
 ## 2.4.0
 - New **Work Orders** tab: request a craft from the guild. **New Work Order** opens a searchable list of everything your guildmates can make (from their shared recipe lists) with who can craft it and the reagents. Pick an item, set a quantity and an optional note, and post it.
 - Anyone else running the addon can claim an open order, and everyone sees who has it. Click an order to claim it, give it back, mark it complete once the items are traded or mailed, cancel it, or whisper the requester or crafter. Completing and cancelling ask first.

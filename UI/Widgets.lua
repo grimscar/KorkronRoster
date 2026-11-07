@@ -254,6 +254,13 @@ function UI.ColoredName(m)
     return "|cff" .. KR.ClassColorHex(m.class) .. name .. "|r"
 end
 
+-- someone named on a work order, class-coloured like the roster while they're still in the guild
+-- g (optional): the guild table, when showing many names at once
+function UI.PersonText(name, g)
+    local m = name and KR.DB:GetMember(name, false, g)
+    return m and UI.ColoredName(m) or ("|cff808080" .. (name or "") .. "|r")
+end
+
 -- a recipe index entry's crafters as member records: online ones, then offline ones
 -- g (optional): the guild table, when checking many recipes at once
 function UI.CraftersSorted(e, g)
@@ -338,6 +345,17 @@ function UI.PrimeItem(itemID)
     else
         KR.Recipes.ItemInfo(itemID)
     end
+end
+
+-- "30x Arcanite Bar" for each reagent of a recipe, for qty crafts
+function UI.ReagentLines(r, qty)
+    local lines = {}
+    for _, rg in ipairs(r.reagents or {}) do
+        UI.PrimeItem(rg.itemID)
+        local name = KR.Recipes.ItemInfo(rg.itemID) or rg.name or ("Item #" .. (rg.itemID or "?"))
+        lines[#lines + 1] = (rg.count or 1) * qty .. "x " .. name
+    end
+    return lines
 end
 
 -- call back with a chat link for a recipe; items the client hasn't seen yet are loaded

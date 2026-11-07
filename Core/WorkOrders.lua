@@ -1,27 +1,35 @@
 -- Kor'kron Roster: guild work orders. A member picks something a guildmate can craft and posts an
--- order; anyone else running the addon can claim it. The crafter marks it sent once the items have
--- been traded or mailed, and the requester confirms they have them (OrderTracking.lua does both
--- by itself for trades and mail).
+-- order; anyone else running the addon can claim it. When the requester provides the materials,
+-- they mark them sent and the crafter marks them received. The crafter marks the order sent once
+-- the items have been traded or mailed, and the requester confirms they have them. OrderTracking.lua
+-- does all four by itself for trades and mail.
 --
 -- KorkronRosterDB.guilds[guild].orders["Requester#created"] = {
---     id, requester, created, status, claimer, stamp, by, qty, prof, itemID, spellID, name, note, mats }
+--     id, requester, created, status, claimer, stamp, by, step, how, qty, prof, itemID, spellID, name,
+--     note, mats, log, handed }
 -- status: "open" -> "claimed" -> "sent" -> "done", or "cancelled" from open or claimed. The
 -- requester can also go straight from claimed to done, and a crafter on 2.4.0 (which has no "sent")
 -- from claimed to done. A sent order nobody confirms counts as done after CONFIRM_WAIT. stamp and by
--- are the time (server clock) and the author of the last change. mats: who provides the materials,
--- "requester" or "crafter", answered when the order is posted (nil on orders posted with 2.4.0).
+-- are the time (server clock) and the author of the last change; step is what that change was (see
+-- STEPS) and how, for a handover, whether it was by trade ("t"), mail ("m") or by hand ("h"). mats:
+-- who provides the materials, "requester" or "crafter", answered when the order is posted (nil on
+-- orders posted with 2.4.0). log: the order's history, every change { at, by, step, how }, oldest
+-- first. handed: OrderTracking's count of the materials handed over so far, kept on this PC only.
 --
 -- Every copy keeps the newest change, and a finished order (done or cancelled) beats any open,
 -- claimed or sent copy, so all copies end up the same and an old copy can't bring a finished order
--- back. 2.4.0 ignores "sent" changes: it shows the order claimed until the requester confirms.
+-- back. A handover that loses to a newer change (both sides of one trade at once) still goes in the
+-- history. 2.4.0 ignores "sent" changes: it shows the order claimed until the requester confirms.
 --
 -- Guild addon messages (prefix KRROSTER), fields separated by "^":
---   W^requester^created^status^claimer^stamp^by^qty^prof^itemID^spellID^name^note^mats
---                    a change, only accepted from `by` itself (2.4.0 sends no mats and reads the
---                    note as the last field)
+--   W^requester^created^status^claimer^stamp^by^qty^prof^itemID^spellID^name^note^mats^step
+--                    a change, only accepted from `by` itself. step is the step's letter and how
+--                    ("gt": materials received by trade). 2.4.0 sends no mats and reads the note as
+--                    the last field; 2.5.0 sends no step, which is then worked out from the status.
 --   WQ^hash          "I just logged in; this is a fingerprint of the orders I know"
 --   WS^name          someone whose fingerprint differs starts re-sharing their orders for name
 --   WL^...           one re-shared order (same fields as W)
+--   WH^requester^created^at^by^step   one entry of that order's history, after its WL
 --   WE^name          end of that re-share; name then sends whatever the re-share lacked
 -- A re-shared order can't be checked against who really made the change, so a modified addon could
 -- make orders up. That is acceptable for a guild tool (Kor'kron Loot's ledger has the same gap).
@@ -42,6 +50,13 @@ WorkOrders.MAX_NOTE = 60  -- bytes: a whole order has to fit in one 255-byte mes
 local STATUSES = { open = true, claimed = true, sent = true, done = true, cancelled = true }
 local FINISHED = { done = true, cancelled = true }
 local MATS = { requester = true, crafter = true }
+
+-- every change is one step: its letter, and the status it leaves the order in. m and g are the
+-- requester's materials, sent and received; they happen while the order is claimed.
+local STEPS = { p = "open", c = "claimed", m = "claimed", g = "claimed", s = "sent", d = "done", r = "open", x = "cancelled" }
+local STEP_ORDER = { p = 1, c = 2, m = 3, g = 4, s = 5, d = 6, r = 7, x = 8 } -- for steps in the same second
+local HANDOVER = { m = true, g = true, s = true, d = true } -- steps that hand something over, by trade, mail or hand
+local HOWS = { t = true, m = true, h = true }
 
 local Now = GetServerTime or time
 
@@ -88,8 +103,21 @@ end
 local function Encode(cmd, o)
     local msg = table.concat({ cmd, o.requester, o.created, o.status, o.claimer or "", o.stamp, o.by,
         o.qty, o.prof, o.itemID or "", o.spellID or "", o.name, "" }, "^")
-    local tail = "^" .. (o.mats or "")
+    local tail = "^" .. (o.mats or "") .. "^" .. (o.step or "") .. (o.how or "")
     return msg .. Truncate(o.note or "", 255 - #msg - #tail) .. tail
+end
+
+-- "gt" -> "g", "t"; nil for anything else
+local function ParseStep(s)
+    local step, how = string.match(s or "", "^(%l)(%l?)$")
+    if not STEPS[step] then return nil end
+    return step, HOWS[how] and how or ""
+end
+
+-- the step a change made with 2.5.0 or older (which says none) must have been
+local function StepOf(o)
+    if o.status == "open" then return o.stamp == o.created and "p" or "r" end
+    return ({ claimed = "c", sent = "s", done = "d", cancelled = "x" })[o.status]
 end
 
 local function Decode(msg)
@@ -104,6 +132,8 @@ local function Decode(msg)
     if not (o.requester and o.created and STATUSES[o.status] and o.stamp and o.by and o.qty) then return nil end
     if o.qty < 1 or o.qty > WorkOrders.MAX_QTY or o.prof == "" or o.name == "" then return nil end
     o.id = o.requester .. "#" .. o.created
+    o.step, o.how = ParseStep(f[15])
+    if STEPS[o.step] ~= o.status then o.step, o.how = StepOf(o), "" end
     return o
 end
 
@@ -131,6 +161,9 @@ local function Allowed(o, old)
         return o.claimer == nil and (old == nil or old.claimer == nil or by == old.claimer
             or by == o.requester or IsOfficer(by))
     elseif o.status == "claimed" then
+        if o.step == "m" then -- the requester's materials are on their way, to the crafter they already had
+            return by == o.requester and o.claimer ~= nil and (old == nil or old.claimer == o.claimer)
+        end
         return o.claimer == by and by ~= o.requester
     elseif o.status == "sent" then
         return o.claimer ~= nil and by == o.claimer
@@ -138,6 +171,33 @@ local function Allowed(o, old)
         return o.claimer ~= nil and (by == o.requester or by == o.claimer)
     end
     return by == o.requester or IsOfficer(by) -- cancelled
+end
+
+-- add a change (stamp, by, step, how) to an order's history unless it's there already; true if added
+local function Record(o, change)
+    o.log = o.log or {}
+    for _, e in ipairs(o.log) do
+        if e.at == change.stamp and e.by == change.by and e.step == change.step then return false end
+    end
+    table.insert(o.log, { at = change.stamp, by = change.by, step = change.step, how = change.how })
+    table.sort(o.log, function(a, b)
+        if a.at ~= b.at then return a.at < b.at end
+        return STEP_ORDER[a.step] < STEP_ORDER[b.step]
+    end)
+    return true
+end
+
+-- the materials steps since the order was last claimed: { m = entry, g = entry }, either missing
+function WorkOrders.MatsSteps(o)
+    local found = {}
+    for _, e in ipairs(o.log or {}) do
+        if e.step == "c" or e.step == "r" then
+            found = {}
+        elseif e.step == "m" or e.step == "g" then
+            found[e.step] = e
+        end
+    end
+    return found
 end
 
 -- take an order heard from the guild; returns true (and the copy it replaced) if ours changed
@@ -148,13 +208,22 @@ local function Merge(o)
     -- (a stamp far in the future would make the order impossible to change again)
     if o.stamp < o.created or o.stamp > now + 3600 or not Keep(o, now) then return false end
     local old = book[o.id]
-    if old and not Newer(o, old) then return false end
+    local newer = not old or Newer(o, old)
     if not Allowed(o, old) then
-        KR:Debug("Ignored a work order change by %s (not allowed).", o.by)
+        if newer then KR:Debug("Ignored a work order change by %s (not allowed).", o.by) end
+        return false
+    end
+    if not newer then
+        -- a handover crossed a newer change (both sides of one trade at once): it still happened
+        if HANDOVER[o.step] and Record(old, o) then KR:Fire("DATA_UPDATED") end
         return false
     end
     -- the materials answer is given once, when the order is posted; changes made with 2.4.0 lack it
     o.mats = (old and old.mats) or o.mats
+    -- a copy, so `old` still shows the history before this change
+    o.log = { unpack(old and old.log or {}) }
+    o.handed = old and old.handed
+    Record(o, o)
     book[o.id] = o
     return true, old
 end
@@ -194,13 +263,24 @@ local function TellSent(o)
     Tell(o, PlayerLink(o.claimer) .. " sent your work order for %s. Once you have it, confirm it on the order's card (/kr orders).")
 end
 
+local MATS_HANDED = { t = "traded you", m = "mailed you" }
+
 -- for changes made by guildmates while you are online (not for re-shares when you log in)
 local function Notify(o, old)
     local mine = KR.DB:IsMyCharacter(o.requester)
-    if not old and o.status == "open" and not mine and CanCraft(o) then
+    if o.step == "p" and not mine and CanCraft(o) then
         Tell(o, "New work order from " .. PlayerLink(o.requester) .. ": %s. You can craft it; type /kr orders to claim it.")
-    elseif mine and o.status == "claimed" then
+    elseif mine and o.step == "c" then
         Tell(o, PlayerLink(o.claimer) .. " claimed your work order for %s.")
+    elseif o.step == "m" and KR.DB:IsMyCharacter(o.claimer) and old and not WorkOrders.MatsSteps(old).g then
+        -- (not if they've already reached you: both sides of one trade)
+        Tell(o, PlayerLink(o.requester) .. " " .. (MATS_HANDED[o.how] or "says they sent you") .. " the materials for %s.")
+    elseif mine and o.step == "g" then
+        Tell(o, PlayerLink(o.claimer) .. " received your materials for %s.")
+    elseif mine and o.step == "r" and old and old.claimer and WorkOrders.MatsSteps(old).g then
+        local by = o.by == old.claimer and "" or (" by " .. PlayerLink(o.by))
+        Tell(o, "Your work order for %s was given back" .. by .. " after " .. PlayerLink(old.claimer)
+            .. " received your materials. Make sure you get them back.")
     elseif mine and o.status == "sent" then
         TellSent(o)
     elseif mine and o.status == "done" and o.by == o.claimer then -- a crafter on 2.4.0
@@ -239,13 +319,21 @@ local function Digest()
     return Recipes.Hash(table.concat(parts, ","))
 end
 
+-- one order for a re-share, then its history
+local function ShareOrder(o)
+    Comm:Send(Encode("WL", o), "BULK")
+    for _, e in ipairs(o.log or {}) do
+        Comm:Send(table.concat({ "WH", o.requester, o.created, e.at, e.by, e.step .. e.how }, "^"), "BULK")
+    end
+end
+
 local function Share(target)
     local book, g = Book()
     if not book then return end
     local now = Now()
     Comm:Send("WS^" .. target, "BULK")
     for _, o in pairs(book) do
-        if Shareable(o, now, g) then Comm:Send(Encode("WL", o), "BULK") end
+        if Shareable(o, now, g) then ShareOrder(o) end
     end
     Comm:Send("WE^" .. target, "BULK")
 end
@@ -298,6 +386,15 @@ Comm:RegisterHandler("WL", function(_, msg)
     if Merge(o) then KR:Fire("DATA_UPDATED") end
 end)
 
+Comm:RegisterHandler("WH", function(_, msg)
+    local _, requester, created, at, by, step = strsplit("^", msg)
+    local o = WorkOrders.Get(tostring(KR.NameKey(requester)) .. "#" .. tostring(created))
+    local e = { stamp = tonumber(at), by = KR.NameKey(by) }
+    e.step, e.how = ParseStep(step)
+    if not (o and e.stamp and e.by and e.step) or e.stamp < o.created or e.stamp > Now() + 3600 then return end
+    if Record(o, e) then KR:Fire("DATA_UPDATED") end
+end)
+
 Comm:RegisterHandler("WE", function(_, msg)
     if not catchingUp or not KR.IsMe(KR.NameKey(select(2, strsplit("^", msg)))) then return end
     local had = catchingUp
@@ -306,30 +403,43 @@ Comm:RegisterHandler("WE", function(_, msg)
     if not book then return end
     local now = Now()
     for id, o in pairs(book) do
-        if not had[id] and Shareable(o, now, g) then Comm:Send(Encode("WL", o), "BULK") end
+        if not had[id] and Shareable(o, now, g) then ShareOrder(o) end
     end
 end)
 
 -- your own changes --------------------------------------------------------------------------
 
 local ACTIONS = {
-    claim   = { from = { open = true }, status = "claimed", said = "You claimed the work order for %s." },
-    release = { from = { claimed = true }, status = "open", said = "The work order for %s is open again." },
-    send    = { from = { claimed = true }, status = "sent",
-                said = "The work order for %s is marked sent. The requester confirms once they have it." },
+    claim    = { step = "c", from = { open = true }, said = "You claimed the work order for %s." },
+    release  = { step = "r", from = { claimed = true }, said = "The work order for %s is open again." },
+    matsSent = { step = "m", from = { claimed = true },
+                 said = "The materials for %s are marked sent. The crafter's side marks them received." },
+    matsGot  = { step = "g", from = { claimed = true }, said = "The materials for %s are marked received." },
+    send     = { step = "s", from = { claimed = true },
+                 said = "The work order for %s is marked sent. The requester confirms once they have it." },
     -- the rules also let the crafter finish an order (2.4.0 does), but from 2.5.0 only the requester does
-    confirm = { from = { claimed = true, sent = true }, status = "done", requesterOnly = true,
-                said = "You confirmed you have %s. The work order is complete." },
-    cancel  = { from = { open = true, claimed = true }, status = "cancelled", said = "The work order for %s is cancelled." },
+    confirm  = { step = "d", from = { claimed = true, sent = true }, requesterOnly = true,
+                 said = "You confirmed you have %s. The work order is complete." },
+    cancel   = { step = "x", from = { open = true, claimed = true }, said = "The work order for %s is cancelled." },
 }
 
--- the order after you do action to it, or nil if that isn't possible or allowed
-local function Changed(o, action)
+-- the materials steps happen once a claim, and only when the requester provides the materials
+local function MatsDone(o, step)
+    if o.mats ~= "requester" then return true end
+    local steps = WorkOrders.MatsSteps(o)
+    return steps.g ~= nil or (step == "m" and steps.m ~= nil) -- received counts as sent too
+end
+
+-- the order after you do action to it, or nil if that isn't possible or allowed. how: "t" or "m"
+-- when a trade or mail did it (OrderTracking), otherwise by hand
+local function Changed(o, action, how)
     local a = ACTIONS[action]
     if not a.from[o.status] or (a.requesterOnly and not KR.IsMe(o.requester)) then return nil end
+    if (a.step == "m" or a.step == "g") and MatsDone(o, a.step) then return nil end
     local n = {}
     for k, v in pairs(o) do n[k] = v end
-    n.status = a.status
+    n.status, n.step = STEPS[a.step], a.step
+    n.how = HANDOVER[a.step] and (how or "h") or ""
     n.by = KR.PlayerName()
     n.stamp = math.max(Now(), o.stamp + 1) -- always after the change it replaces
     if action == "claim" then
@@ -352,6 +462,7 @@ local function Current(o)
 end
 
 local function Send(o)
+    Record(o, o)
     Book()[o.id] = o
     Comm:Send(Encode("W", o), "NORMAL")
     KR:Fire("DATA_UPDATED")
@@ -361,9 +472,9 @@ function WorkOrders.Can(o, action)
     return Changed(Current(o), action) ~= nil
 end
 
--- said (optional): the chat message instead of the usual one, with %s for the item
-function WorkOrders.Do(o, action, said)
-    local n = Changed(Current(o), action)
+-- said (optional): the chat message instead of the usual one, with %s for the item; how: see Changed
+function WorkOrders.Do(o, action, said, how)
+    local n = Changed(Current(o), action, how)
     if not n then return false end
     Send(n)
     Tell(n, said or ACTIONS[action].said)
@@ -382,7 +493,7 @@ function WorkOrders.Create(entry, qty, mats, note)
     local me, now, r = KR.PlayerName(), Now(), entry.recipe
     local o = {
         id = me .. "#" .. now, requester = me, created = now, status = "open", stamp = now, by = me,
-        qty = qty, prof = entry.prof, itemID = r.itemID, spellID = r.spellID, name = r.name,
+        step = "p", how = "", qty = qty, prof = entry.prof, itemID = r.itemID, spellID = r.spellID, name = r.name,
         note = Truncate(CleanNote(note), WorkOrders.MAX_NOTE), mats = mats,
     }
     Send(o)

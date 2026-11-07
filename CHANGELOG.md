@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.6.0
+- When the requester provides the materials, handing them over is tracked too. Trading or mailing the crafter every material for the whole order marks them **sent** on the requester's side, and the crafter's side marks them **received** when they arrive by trade or in the mailbox. Big orders can come in several trades or letters; they add up. Both sides get a chat line.
+- The order card's Materials line says whether the materials have been sent and received, with a **Mark Sent** / **Mark Received** button for when tracking can't see them (for example, another of your characters sent them).
+- New **History** on the order card: every step with who, the date and time, and whether it happened by trade, by mail or by hand. Everyone in the guild running the addon sees it, and it stays with the order in the Completed tab.
+- If a crafter gives an order back after receiving your materials, you're warned in chat. The history keeps who had them.
+- The card grows taller to fit a long history.
+- Guildmates still on 2.5.0 can keep using work orders with you. They don't see the materials steps or the history, and a requester on 2.5.0 gets a second "claimed your work order" message when the crafter receives the materials.
+
 ## 2.5.0
 - New work orders ask who provides the materials: you, or the crafter. The Work Orders tab shows the answer in a new **Mats by** column.
 - Clicking an order opens its own card: the item, who asked and who's crafting it, who provides the materials and how many are needed for the whole order, the note, and buttons to claim, give back, mark sent, confirm or cancel it.

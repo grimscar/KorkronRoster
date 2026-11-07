@@ -1,10 +1,14 @@
--- Kor'kron Roster: notices trades and mail that hand over a work order's items and moves the order on
--- by itself. On the crafter's side the order is marked sent; on the requester's side it's confirmed.
+-- Kor'kron Roster: notices trades and mail that hand over a work order's materials or items and moves
+-- the order on by itself. When the requester provides the materials, the requester's side marks them
+-- sent and the crafter's side marks them received. Then the crafter's side marks the order sent and
+-- the requester's side confirms it.
 --   Trade: what each side has put in the trade window is noted as it changes (an enchant shows on the
 --          item in the "Will not be traded" slot); it counts once the game says the trade is complete.
---   Mail:  the crafter's attachments count once the game says the mail went out. The requester's side
---          counts mail from the crafter as soon as it shows in their mailbox, except cash on delivery.
--- One trade or mail (or the mailbox, for each sender) has to hold the whole order; anything less is
+--   Mail:  attachments count once the game says the mail went out. Mail from the other side counts as
+--          soon as it shows in your mailbox, except cash on delivery.
+-- Materials add up over several trades and letters sent (o.handed). The mailbox can't: it may show
+-- letters already seen, so what's in it counts on top of what was traded but only while it's there.
+-- The items have to come in one trade or mail (or the mailbox, for each sender). Anything less is
 -- left to the order card's buttons.
 local _, KR = ...
 
@@ -48,18 +52,73 @@ local function Take(o, h)
     return true
 end
 
+-- the order's materials, [itemID] = how many, or nil when they aren't all known by item
+local function Needed(o)
+    local e = KR.Recipes.Find(o.prof, o.name)
+    local reagents = e and e.recipe.reagents
+    if not reagents or #reagents == 0 then return nil end
+    local need = {}
+    for _, rg in ipairs(reagents) do
+        if not rg.itemID then return nil end
+        need[rg.itemID] = (need[rg.itemID] or 0) + (rg.count or 1) * o.qty
+    end
+    return need
+end
+
+-- adds the order's materials in the handover to what was handed over before under this claim (those
+-- in the handover are used up, so each counts for one order); true once they're all there.
+-- inbox: the handover is the mailbox, which only counts while it's there
+local function TakeMats(o, h, inbox)
+    local need = Needed(o)
+    if not need then return false end
+    if not o.handed or o.handed.claimer ~= o.claimer then o.handed = { claimer = o.claimer, counts = {} } end
+    local all, progress = true, {}
+    for id, n in pairs(need) do
+        local had = o.handed.counts[id] or 0
+        local take = math.max(0, math.min(n - had, h.counts[id] or 0))
+        if take > 0 then
+            h.counts[id] = h.counts[id] - take
+            if not inbox then o.handed.counts[id] = had + take end
+        end
+        all = all and had + take >= n
+        progress[#progress + 1] = (had + take) .. "/" .. n .. " item " .. id
+    end
+    KR:Debug("Materials for %s: %s.", o.name, table.concat(progress, ", "))
+    return all
+end
+
+local VERB = { t = "traded", m = "mailed" }
+
+-- the requester handing over the materials, and the crafter getting them
+local function SettleMats(o, partner, given, got, how, inbox)
+    if o.status ~= "claimed" or o.mats ~= "requester" then return end
+    local steps = KR.WorkOrders.MatsSteps(o)
+    if not (steps.m or steps.g) and KR.IsMe(o.requester) and SamePerson(partner, o.claimer) and TakeMats(o, given) then
+        KR.WorkOrders.Do(o, "matsSent", "You " .. VERB[how] .. " the materials for %s to " .. o.claimer .. ", so they're marked sent.", how)
+    elseif not steps.g and KR.IsMe(o.claimer) and SamePerson(partner, o.requester) and TakeMats(o, got, inbox) then
+        KR.WorkOrders.Do(o, "matsGot", "You got the materials for %s from " .. o.requester .. ", so they're marked received.", how)
+    end
+end
+
+-- the crafter handing over the items, and the requester getting them
+local function SettleItems(o, partner, given, got, how)
+    if o.status == "claimed" and KR.IsMe(o.claimer) and SamePerson(partner, o.requester) and Take(o, given) then
+        KR.WorkOrders.Do(o, "send", "You " .. VERB[how] .. " %s to " .. o.requester .. ", so the work order is marked sent.", how)
+    elseif (o.status == "claimed" or o.status == "sent") and KR.IsMe(o.requester)
+        and SamePerson(partner, o.claimer) and Take(o, got) then
+        KR.WorkOrders.Do(o, "confirm", "You got %s from " .. o.claimer .. ", so the work order is complete.", how)
+    end
+end
+
 -- partner: who we traded or mailed with; given/got: what went to them and what came from them;
--- verb: "traded" or "mailed". Oldest orders first.
-local function Settle(partner, given, got, verb)
+-- how: "t" (trade) or "m" (mail); inbox: got is the mailbox. Oldest orders first, and materials
+-- before items: one trade can bring an enchanter the materials and the item to enchant.
+local function Settle(partner, given, got, how, inbox)
     local orders = KR.WorkOrders.List(false)
     table.sort(orders, function(a, b) return a.created < b.created end)
     for _, o in ipairs(orders) do
-        if o.status == "claimed" and KR.IsMe(o.claimer) and SamePerson(partner, o.requester) and Take(o, given) then
-            KR.WorkOrders.Do(o, "send", "You " .. verb .. " %s to " .. o.requester .. ", so the work order is marked sent.")
-        elseif (o.status == "claimed" or o.status == "sent") and KR.IsMe(o.requester)
-            and SamePerson(partner, o.claimer) and Take(o, got) then
-            KR.WorkOrders.Do(o, "confirm", "You got %s from " .. o.claimer .. ", so the work order is complete.")
-        end
+        SettleMats(o, partner, given, got, how, inbox)
+        SettleItems(o, partner, given, got, how)
     end
 end
 
@@ -94,7 +153,7 @@ KR:RegisterEvent("UI_INFO_MESSAGE", function(a, b)
     local done = trade
     trade = nil
     KR:Debug("Trade with %s complete: gave %s; got %s.", done.partner, Describe(done.given), Describe(done.got))
-    Settle(done.partner, done.given, done.got, "traded")
+    Settle(done.partner, done.given, done.got, "t")
 end)
 
 -- mail -------------------------------------------------------------------------------------------------
@@ -116,7 +175,7 @@ KR:RegisterEvent("MAIL_SEND_SUCCESS", function()
     outgoing = nil
     if not mail then return end
     KR:Debug("Mail to %s sent: %s.", mail.to, Describe(mail.items))
-    Settle(mail.to, mail.items, Handover(), "mailed")
+    Settle(mail.to, mail.items, Handover(), "m")
 end)
 
 KR:RegisterEvent("MAIL_FAILED", function() outgoing = nil end)
@@ -135,6 +194,6 @@ KR:RegisterEvent("MAIL_INBOX_UPDATE", function()
     end
     for sender, h in pairs(bySender) do
         KR:Debug("Mailbox: %s from %s.", Describe(h), sender)
-        Settle(sender, Handover(), h, "mailed")
+        Settle(sender, Handover(), h, "m", true)
     end
 end)

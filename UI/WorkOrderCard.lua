@@ -1,13 +1,15 @@
 -- Kor'kron Roster: the work order card (click an order on the Work Orders or Completed tab). The whole
--- order, who provides the materials and how many are needed, buttons for what you may do with it, and
--- ready-made whispers between the requester and the crafter.
+-- order, who provides the materials, how many are needed and where they are, the order's history,
+-- buttons for what you may do with it, and ready-made whispers between the requester and the crafter.
 local _, KR = ...
 
 local UI = KR.UI
 local Card = {}
 UI.WorkOrderCard = Card
 
-local WIDTH, HEIGHT = 380, 440
+local WIDTH, MIN_HEIGHT = 380, 440
+-- the card's height around its texts: above the first, each section's gap and header, below the last
+local TOP, SECTION, BOTTOM = 84, 34, 104
 local CHAT_MAX = 255 -- longest chat message, in bytes
 
 local frame, order
@@ -26,6 +28,20 @@ local ACTIONS = {
       confirm = "Confirm you have %s?\n\nThe work order moves to Completed." },
     { id = "cancel", label = "Cancel Order", width = 96, confirm = "Cancel the work order for %s?" },
 }
+
+-- the requester's materials, by hand: one button on the Materials line, for whichever side you are
+local MATS_ACTIONS = {
+    { id = "matsSent", label = "Mark Sent",
+      confirm = "Mark the materials for %s sent?\n\nTrades and mail to the crafter are noticed by themselves. Use this when they weren't, for example when another of your characters sent them. The order's history shows it was marked by hand." },
+    { id = "matsGot", label = "Mark Received",
+      confirm = "Mark the materials for %s received?\n\nTrades and mail from the requester are noticed by themselves. Use this when they weren't, for example when some came from another character. The order's history shows it was marked by hand." },
+}
+
+local STEP_TEXT = {
+    p = "Posted by %s", c = "Claimed by %s", r = "Given back by %s", m = "Materials sent by %s",
+    g = "Materials received by %s", s = "Sent by %s", d = "Completed by %s", x = "Cancelled by %s",
+}
+local HOW_TEXT = { t = " (trade)", m = " (mail)", h = " (by hand)" }
 
 -- ready-made whispers for a claimed order, by your side of it and then by who provides the materials
 -- (unknown: posted with 2.4.0). {item} becomes the linked item and count, {mats} the materials list.
@@ -90,10 +106,19 @@ local function People(o)
     return "Requested by " .. UI.PersonText(o.requester) .. ", " .. KR.FormatAgo(o.created) .. "\n" .. second
 end
 
+-- while the order is claimed: have the requester's materials been sent, and received?
+local function MatsState(o)
+    if o.status ~= "claimed" then return "" end
+    local steps = KR.WorkOrders.MatsSteps(o)
+    if steps.g then return " |cff40ff40Received by " .. o.claimer .. ".|r" end
+    if steps.m then return " |cffffd100Sent, not received yet.|r" end
+    return " |cff9d9d9dNot sent yet.|r"
+end
+
 local function MatsText(o)
     local who
     if o.mats == "requester" then
-        who = UI.PersonText(o.requester) .. " provides them."
+        who = UI.PersonText(o.requester) .. " provides them." .. MatsState(o)
     elseif o.mats == "crafter" then
         who = "The crafter provides them."
     else
@@ -102,6 +127,22 @@ local function MatsText(o)
     local lines = Materials(o)
     if not lines then return who .. "\n|cff9d9d9dNobody in the guild shares this recipe right now, so the list is unknown.|r" end
     return who .. "\n|cffffffff" .. table.concat(lines, "\n") .. "|r"
+end
+
+-- "11/07 8:05pm", in this PC's time zone
+local function When(t)
+    return (string.gsub(string.lower(date("%m/%d %I:%M%p", t)), " 0", " "))
+end
+
+-- every step of the order: when, what, who, and for a handover whether by trade, mail or hand
+local function HistoryText(o)
+    if not o.log or #o.log == 0 then return "|cff9d9d9dNot recorded (posted with an older version).|r" end
+    local lines = {}
+    for _, e in ipairs(o.log) do
+        lines[#lines + 1] = "|cffaaaaaa" .. When(e.at) .. "|r  " .. string.format(STEP_TEXT[e.step], UI.PersonText(e.by))
+            .. (HOW_TEXT[e.how] or "")
+    end
+    return table.concat(lines, "\n")
 end
 
 -- your side of a claimed or sent order ("crafter" or "requester") and the other person, when it's
@@ -197,18 +238,19 @@ local function Header(text)
     return fs
 end
 
--- text under a header, as wide as the card, growing with what it holds
+-- text under a header, as wide as the card, growing with what it holds (a set width, so its height
+-- can be measured straight after SetText)
 local function Body(header)
     local fs = Label("GameFontHighlightSmall")
     fs:SetPoint("TOPLEFT", header, "BOTTOMLEFT", 4, -6)
-    fs:SetPoint("RIGHT", frame, "RIGHT", -16, 0)
+    fs:SetWidth(WIDTH - 36)
     fs:SetSpacing(2)
     return fs
 end
 
 local function Build()
     frame = CreateFrame("Frame", "KorkronWorkOrderCard", UIParent, "BasicFrameTemplateWithInset")
-    frame:SetSize(WIDTH, HEIGHT)
+    frame:SetSize(WIDTH, MIN_HEIGHT)
     frame:SetMovable(true)
     frame:SetClampedToScreen(true)
     frame:EnableMouse(true)
@@ -247,15 +289,22 @@ local function Build()
 
     frame.people = Label("GameFontHighlightSmall")
     frame.people:SetPoint("TOPLEFT", icon, "BOTTOMLEFT", 0, -10)
-    frame.people:SetPoint("RIGHT", -16, 0)
+    frame.people:SetWidth(WIDTH - 32)
     frame.people:SetSpacing(2)
 
     local matsHeader = Header("Materials")
     matsHeader:SetPoint("TOPLEFT", frame.people, "BOTTOMLEFT", 0, -14)
     frame.mats = Body(matsHeader)
+    -- on the header's line, at the card's right edge
+    frame.matsButton = Button("", 110, ActionClick)
+    frame.matsButton:SetHeight(20)
+    frame.matsButton:SetPoint("LEFT", matsHeader, "LEFT", WIDTH - 32 - 110, 0)
     local noteHeader = Header("Note")
     noteHeader:SetPoint("TOPLEFT", frame.mats, "BOTTOMLEFT", -4, -14)
     frame.note = Body(noteHeader)
+    local historyHeader = Header("History")
+    historyHeader:SetPoint("TOPLEFT", frame.note, "BOTTOMLEFT", -4, -14)
+    frame.history = Body(historyHeader)
 
     frame.whisperHeader = Header("Whisper")
     frame.whisperHeader:SetPoint("BOTTOMLEFT", 16, 74)
@@ -287,7 +336,7 @@ local function ShowWhispers(o)
     end
 end
 
--- the buttons for what you may do now, side by side from the left
+-- the buttons for what you may do now, side by side from the left, and the materials one
 local function ShowActions(o)
     local x = 12
     for _, btn in ipairs(frame.actions) do
@@ -299,6 +348,22 @@ local function ShowActions(o)
             x = x + btn:GetWidth() + 4
         end
     end
+    local mats = frame.matsButton
+    mats.action = nil
+    for _, a in ipairs(MATS_ACTIONS) do
+        if KR.WorkOrders.Can(o, a.id) then mats.action = a end
+    end
+    mats:SetShown(mats.action ~= nil)
+    if mats.action then mats:SetText(mats.action.label) end
+end
+
+-- the card grows to fit what it holds
+local function FitHeight()
+    local h = TOP + BOTTOM + frame.people:GetStringHeight()
+    for _, fs in ipairs({ frame.mats, frame.note, frame.history }) do
+        h = h + SECTION + fs:GetStringHeight()
+    end
+    frame:SetHeight(math.max(MIN_HEIGHT, h))
 end
 
 function Card:Refresh()
@@ -314,8 +379,10 @@ function Card:Refresh()
     frame.people:SetText(People(o))
     frame.mats:SetText(MatsText(o))
     frame.note:SetText(o.note ~= "" and o.note or "|cff9d9d9dNo note.|r")
+    frame.history:SetText(HistoryText(o))
     ShowWhispers(o)
     ShowActions(o)
+    FitHeight()
 end
 
 function Card:Open(o)

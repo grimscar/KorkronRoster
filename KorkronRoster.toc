@@ -2,7 +2,7 @@
 ## Title: |cffc41f3bKor'kron|r Guild Roster & Professions
 ## Notes: Guild roster with shared professions, recipe lists, guild crafter search and PvP standings. Type /kr to open.
 ## Author: Grimscar
-## Version: 2.6.0
+## Version: 2.7.0
 ## SavedVariables: KorkronRosterDB
 ## IconTexture: Interface\Icons\INV_BannerPVP_01
 ## AddonCompartmentFunc: KorkronRoster_OnAddonCompartmentClick

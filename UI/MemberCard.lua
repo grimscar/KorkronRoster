@@ -110,13 +110,13 @@ local function Build()
     frame.info = Label(frame, "GameFontHighlightSmall", 64, -52, WIDTH - 180)
     frame.rank = Label(frame, "GameFontHighlightSmall", 64, -66, WIDTH - 180)
     frame.status = Label(frame, "GameFontHighlightSmall", 64, -80, WIDTH - 80)
-    -- one line each: long titles get "..." instead of wrapping over the next line
+    -- one line each: long text gets "..." instead of wrapping over the next line
     for _, fs in ipairs({ frame.name, frame.info, frame.rank, frame.status }) do
         fs:SetWordWrap(false)
     end
 
 
-    -- officers and the GM: change rank and Kor'kron title
+    -- officers and the GM: change rank
     frame.setRank = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
     frame.setRank:SetSize(90, 20)
     frame.setRank:SetPoint("TOPRIGHT", -16, -54)
@@ -125,7 +125,7 @@ local function Build()
     frame.setRank:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
         GameTooltip:AddLine("Set rank")
-        GameTooltip:AddLine("Pick a Kor'kron title. Their in-game rank moves to match, and everyone running the addon sees the title.", 1, 1, 1, true)
+        GameTooltip:AddLine("Move them to another guild rank. You can pick any rank below your own.", 1, 1, 1, true)
         GameTooltip:Show()
     end)
     frame.setRank:SetScript("OnLeave", function() GameTooltip:Hide() end)
@@ -201,13 +201,8 @@ function Card:Refresh()
     end
     frame.classIcon:SetDesaturated(not m.online)
     frame.name:SetText(UI.ColoredName(m))
-    local title = KR.Ranks.Title(m)
     frame.info:SetText(string.format("Level %s %s", m.level or "?", ClassName(m.class)))
-    if title and title ~= m.guildRank then
-        frame.rank:SetText("|cffffd100" .. title .. "|r |cff888888(" .. (m.guildRank or "?") .. ")|r")
-    else
-        frame.rank:SetText("|cffffd100" .. (m.guildRank or "") .. "|r")
-    end
+    frame.rank:SetText("|cffffd100" .. (m.guildRank or "") .. "|r")
     frame.setRank:SetShown(KR.Ranks.CanEdit(m))
     if m.online then
         frame.status:SetText("|cff40ff40Online|r" .. ((m.zone and m.zone ~= "") and (" - " .. m.zone) or ""))

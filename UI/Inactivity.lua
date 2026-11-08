@@ -92,8 +92,7 @@ local function UpdateRow(row, item)
         local extra = #p.chars - 1
         local name = "|cff" .. KR.ClassColorHex(m.class) .. m.name .. "|r"
         if extra > 0 then name = name .. " |cff9d9d9d(+" .. extra .. (extra == 1 and " alt" or " alts") .. ")|r" end
-        local title = KR.Ranks.Title(m)
-        if title then name = name .. "  |cff777777" .. title .. "|r" end
+        if m.guildRank then name = name .. "  |cff777777" .. m.guildRank .. "|r" end
         row.left:SetText(name)
         row.right:SetText(p.online and "|cff40ff40Online|r" or ("|cffaaaaaa" .. KR.FormatAgo(p.lastOnline) .. "|r"))
     end

@@ -202,10 +202,10 @@ function UI.HideMenu()
     if menu then menu:Hide() end
 end
 
--- the Kor'kron rank picker, shared by the player card and the Roster tab
+-- the rank picker, shared by the player card and the Roster tab
 function UI.ShowRankMenu(anchor, m)
     UI.ShowMenu(anchor, KR.Ranks.Options(m), function(opt)
-        KR.Ranks.Choose(m, opt.tier, opt.title)
+        KR.Ranks.Choose(m, opt.index)
     end, 200)
 end
 
@@ -413,8 +413,7 @@ function UI.MemberTooltip(owner, m)
         end
     end
     local classLine = "Level " .. (m.level or "?")
-    local title = KR.Ranks.Title(m)
-    if title then classLine = classLine .. "  |cffffd100" .. title .. "|r" end
+    if m.guildRank then classLine = classLine .. "  |cffffd100" .. m.guildRank .. "|r" end
     GameTooltip:AddLine(classLine, 1, 1, 1)
     if m.online then
         if m.zone and m.zone ~= "" then GameTooltip:AddLine(m.zone, 0.4, 1, 0.4) end

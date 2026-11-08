@@ -436,14 +436,11 @@ local GUILD_RANK_COLUMN = {
     id = "guildRank", title = "Rank", width = 110, asc = true,
     sortValue = function(m) return m.guildRankIndex or 99 end,
     render = function(cell, m)
-        local title = KR.Ranks.Title(m)
-        UI.SetCell(cell, "LEFT", title and ("|cffdddddd" .. title .. "|r") or "|cff555555-|r")
+        UI.SetCell(cell, "LEFT", m.guildRank and ("|cffdddddd" .. m.guildRank .. "|r") or "|cff555555-|r")
     end,
     tooltip = function(cell, m)
         GameTooltip:SetOwner(cell, "ANCHOR_RIGHT")
-        GameTooltip:AddLine(KR.Ranks.Title(m) or "?", 1, 0.82, 0)
-        GameTooltip:AddLine("In-game rank: " .. (m.guildRank or "?"), 0.8, 0.8, 0.8)
-        if m.titleBy then GameTooltip:AddLine("Title set by " .. m.titleBy, 0.6, 0.6, 0.6) end
+        GameTooltip:AddLine(m.guildRank or "?", 1, 0.82, 0)
         if KR.Ranks.CanEdit(m) then GameTooltip:AddLine("Click to change rank", 0, 1, 0) end
         GameTooltip:Show()
     end,

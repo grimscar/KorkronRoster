@@ -98,15 +98,7 @@ KR.PVP_RANK_NAMES = {
     },
 }
 
--- Kor'kron titles, shown instead of the in-game rank to everyone running the addon.
--- Each tier is matched to an in-game rank by name (falling back to its position, 0 = GM).
--- A tier with a single title applies it automatically; otherwise an officer picks one.
-KR.RANK_TIERS = {
-    { rank = "Guild Master", index = 0, titles = { "High Overlord" } },
-    { rank = "Officer",      index = 1, titles = { "Warmaster", "Blood Guard", "Quartermaster", "Hearth-Caller" } },
-    { rank = "Veteran",      index = 2, titles = { "Kor'Kron Vanguard" } },
-    { rank = "Member",       index = 3, titles = { "Legionnaire", "Oathbound", "Hearthguard" } },
-    { rank = "Initiate",     index = 4, titles = { "Scout" } },
-}
+-- The guild's lowest officer rank, by its in-game name: it and every rank above it are officers.
+KR.LOWEST_OFFICER_RANK = "Hearth-Caller"
 
 KR.WEEKDAYS ={ "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday" }

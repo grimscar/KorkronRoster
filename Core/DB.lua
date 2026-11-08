@@ -10,7 +10,7 @@ local _, KR = ...
 local DB = {}
 KR.DB = DB
 
-local SCHEMA = 3
+local SCHEMA = 4
 
 local DEFAULT_SETTINGS = {
     debug = false,
@@ -97,11 +97,22 @@ local function MigrateV2(db)
     end
 end
 
+-- Before 2.7.0 the addon kept its own titles on top of the guild's ranks; the ranks have those
+-- names in the game now.
+local function MigrateV3(db)
+    for _, g in pairs(db.guilds or {}) do
+        for _, m in pairs(g.members or {}) do
+            m.title, m.titleStamp, m.titleBy = nil, nil, nil
+        end
+    end
+end
+
 function DB:Init()
     if type(KorkronRosterDB) ~= "table" then KorkronRosterDB = {} end
     local db = KorkronRosterDB
     if (db.schema or 1) < 2 then MigrateV1(db) end
     if (db.schema or 1) < 3 then MigrateV2(db) end
+    if (db.schema or 1) < 4 then MigrateV3(db) end
     db.schema = SCHEMA
     if type(db.settings) ~= "table" then db.settings = {} end
     ApplyDefaults(db.settings, DEFAULT_SETTINGS)

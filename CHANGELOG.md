@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.7.0
+- The guild's ten ranks now have their real names in the game, so the addon's separate Kor'kron titles are gone. The Rank column, player card, inactivity report and tooltips all show each member's actual rank.
+- **Set Rank** lists the guild's ranks below your own, and every change goes through the Confirm box. The game's guild rank permissions still apply.
+- High Overlord, Warmaster, Blood Guard, Quartermaster and Hearth-Caller count as officers: they can use Set Rank and can cancel or give back any work order.
+- Fixed: with the new ranks, older versions showed the wrong rank names, and Set Rank could move someone to the wrong rank. Please update, and don't use Set Rank on an older version.
+- Until everyone updates, a work order cancelled or given back by a Blood Guard, Quartermaster or Hearth-Caller keeps showing as active for guildmates on an older version. It corrects itself after they update.
+- `KorkronRoster:GetTitle` is removed.
+
 ## 2.6.0
 - When the requester provides the materials, handing them over is tracked too. Trading or mailing the crafter every material for the whole order marks them **sent** on the requester's side, and the crafter's side marks them **received** when they arrive by trade or in the mailbox. Big orders can come in several trades or letters; they add up. Both sides get a chat line.
 - The order card's Materials line says whether the materials have been sent and received, with a **Mark Sent** / **Mark Received** button for when tracking can't see them (for example, another of your characters sent them).

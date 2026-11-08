@@ -11,7 +11,7 @@ local RankConfirm = {}
 UI.RankConfirm = RankConfirm
 
 local frame, confirm
-local pending -- { m, tier, title, plan }
+local pending -- { m, plan }
 
 local function Build()
     frame = CreateFrame("Frame", "KorkronRankConfirm", UIParent, "BasicFrameTemplateWithInset")
@@ -49,7 +49,7 @@ local function Build()
         local p = pending
         pending = nil
         frame:Hide()
-        if p then KR.Ranks.Applied(p.m, p.tier, p.title, p.plan) end
+        if p then KR.Ranks.Applied(p.m, p.plan) end
     end)
 
     local cancel = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
@@ -64,20 +64,19 @@ local function Build()
     end)
 end
 
-function RankConfirm:Open(m, tier, title, plan)
+function RankConfirm:Open(m, plan)
     if InCombatLockdown() then
         KR:Print("Rank changes can't be made in combat.")
         return
     end
     if not frame then Build() end
-    pending = { m = m, tier = tier, title = title, plan = plan }
+    pending = { m = m, plan = plan }
     confirm:SetAttribute("macrotext", plan.macro)
 
     local steps = math.abs(plan.steps)
-    frame.text:SetText(string.format("%s |cffffffff%s|r\nfrom |cffaaaaaa%s|r to |cffaaaaaa%s|r%s\nand make them |cffffd100%s|r?",
+    frame.text:SetText(string.format("%s |cffffffff%s|r\nfrom |cffaaaaaa%s|r to |cffffd100%s|r%s?",
         plan.promote and "Promote" or "Demote", m.name, m.guildRank or "?",
-        KR.Ranks.RankName(plan.goal) or tier.rank,
-        steps > 1 and (" (" .. steps .. " steps)") or "", title))
+        plan.goalName, steps > 1 and (" (" .. steps .. " steps)") or ""))
     frame:Show()
     frame:Raise()
 end

@@ -5,6 +5,7 @@ A guild roster for **World of Warcraft: Forever** (Interface 16001) that shares 
 ## Features
 
 - **Roster tab**: rank, location, last seen and notes. Turn on **Mains only** to fold alts into their main and see how many unique players the guild has. The **Inactivity** report groups players by when they were last on.
+- **Guild Log** (officers): who joined, left, was kicked, promoted or demoted, by whom and when, from a button on the Roster tab. It starts with what the game's own guild log still holds and keeps it after the game drops it. Times are to the nearest hour.
 - **Professions tab**: every guildmate's two main professions plus Fishing, Cooking and First Aid. Blue entries have a shared recipe list; click one to browse it.
 - **Recipes tab**: every recipe known in the guild and who can craft it, with online crafters first. Click to whisper a crafter with a ready-made "Could you craft [item] for me?", or right-click to open their recipe list.
 - **Work Orders tab**: ask the guild for a craft. **New Work Order** opens a searchable list of everything your guildmates can make; pick an item, set how many, say whether you'll provide the materials or the crafter should, add a short note if you like and post it. Anyone else running the addon can click the order to **claim** it, so everyone sees who's on it. If you provide the materials, they're marked **sent** when you hand them over and **received** when the crafter gets them. When the crafter trades or mails the items, the order is marked **sent**, and the requester **confirms** they have them. Trades and mail are noticed for you, and each order keeps a history of every step.
@@ -42,6 +43,7 @@ Recipe lists are shared once each person opens each of their profession windows 
 | `/kr` | Open or close the roster |
 | `/kr roster`, `/kr prof`, `/kr pvp`, `/kr recipes` | Open a specific tab |
 | `/kr inactive` | Inactivity report |
+| `/kr log` | Guild log (officers) |
 | `/kr find <text>` | Search the guild's recipes |
 | `/kr orders` | Work orders: request a craft, or claim one |
 | `/kr sync` | Share your data and request everyone else's |

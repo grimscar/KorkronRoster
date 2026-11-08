@@ -7,6 +7,7 @@ local function PrintHelp()
     DEFAULT_CHAT_FRAME:AddMessage(c .. "/kr|r - open or close the roster")
     DEFAULT_CHAT_FRAME:AddMessage(c .. "/kr roster|r, " .. c .. "/kr prof|r, " .. c .. "/kr pvp|r, " .. c .. "/kr recipes|r - open a specific tab")
     DEFAULT_CHAT_FRAME:AddMessage(c .. "/kr inactive|r - inactivity report")
+    DEFAULT_CHAT_FRAME:AddMessage(c .. "/kr log|r - guild log: who joined, left or changed rank (officers)")
     DEFAULT_CHAT_FRAME:AddMessage(c .. "/kr find <text>|r - search the guild's recipes")
     DEFAULT_CHAT_FRAME:AddMessage(c .. "/kr orders|r - work orders: request crafts from the guild, or claim one")
     DEFAULT_CHAT_FRAME:AddMessage(c .. "/kr sync|r - share your data and request the guild's")
@@ -66,6 +67,8 @@ local function HandleCommand(msg)
         KR.UI.Main:Show("ROSTER")
     elseif cmd == "inactive" or cmd == "inactivity" then
         KR.UI.Inactivity:Toggle()
+    elseif cmd == "log" or cmd == "guildlog" then
+        KR.UI.GuildLog:Toggle()
     elseif cmd == "prof" or cmd == "professions" then
         KR.UI.Main:Show("PROFESSIONS")
     elseif cmd == "pvp" then

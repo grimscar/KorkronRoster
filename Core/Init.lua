@@ -266,6 +266,16 @@ function KR.ClassColorHex(classTag)
     return string.format("%02x%02x%02x", c.r * 255, c.g * 255, c.b * 255)
 end
 
+-- The game reports how long ago something was in whole years, months, days and hours.
+-- Returns that in seconds, or nil if the game hid it or has no answer.
+function KR.ElapsedSeconds(years, months, days, hours)
+    -- (readable first: even testing a hidden value for nil throws)
+    if KR.Readable(years) and KR.Readable(months) and KR.Readable(days) and KR.Readable(hours) and years then
+        return (((years * 365) + (months * 30) + days) * 24 + hours) * 3600
+    end
+    return nil
+end
+
 function KR.FormatAgo(timestamp)
     if not timestamp or timestamp <= 0 then return "never" end
     local diff = math.max(0, time() - timestamp)

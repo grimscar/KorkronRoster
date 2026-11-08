@@ -699,6 +699,7 @@ local function UpdateHeaders()
     frame.mainsOnly:SetShown(tab.rosterTools and true or false)
     frame.mainsOnly.label:SetShown(tab.rosterTools and true or false)
     frame.inactivity:SetShown(tab.rosterTools and true or false)
+    frame.guildLog:SetShown(tab.rosterTools and KR.GuildLog.CanView() or false)
     frame.newOrder:SetShown(tab.orderTools and true or false)
     frame.title:SetText("|cffc41f3bKor'kron|r - " .. tab.title)
 end
@@ -946,6 +947,21 @@ local function Build()
     end)
     mains:SetScript("OnLeave", function() GameTooltip:Hide() end)
     frame.mainsOnly = mains
+
+    -- officers only; left of Mains only so that row doesn't move for everyone else
+    local guildLog = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
+    guildLog:SetSize(90, 22)
+    guildLog:SetPoint("RIGHT", mains, "LEFT", -8, 0)
+    guildLog:SetText("Guild Log")
+    guildLog:SetScript("OnClick", function() UI.GuildLog:Toggle() end)
+    guildLog:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_TOP")
+        GameTooltip:AddLine("Guild log")
+        GameTooltip:AddLine("Who joined, left, was kicked, promoted or demoted, by whom and when. Only officers see this button.", 1, 1, 1, true)
+        GameTooltip:Show()
+    end)
+    guildLog:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    frame.guildLog = guildLog
 
     local grip = CreateFrame("Button", nil, frame)
     grip:SetSize(16, 16)

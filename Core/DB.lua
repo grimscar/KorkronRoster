@@ -5,6 +5,8 @@
 --   chars[Name-Realm]   your own characters (source of truth for what you broadcast)
 --   guilds[Guild-Realm] .members[Name] = member record, one table per guild
 --                       .orders[id] = work order (see WorkOrders.lua)
+--   guildLogs[Guild-Realm] saved guild log (see GuildLog.lua). Outside guilds[]: "Clear guild data"
+--                       must not erase it, because the game can't give old events back
 local _, KR = ...
 
 local DB = {}
@@ -119,6 +121,7 @@ function DB:Init()
     db.chars = db.chars or {}
     db.guilds = db.guilds or {}
     db.mains = db.mains or {} -- [guildKey] = full name of the account's main in that guild
+    db.guildLogs = db.guildLogs or {}
     KR.db = db
 end
 

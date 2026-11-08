@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.8.0
+- New **Guild Log** for officers (Hearth-Caller and up): who joined, left, was kicked, promoted or demoted, by whom and when, newest first. Open it with the **Guild Log** button on the Roster tab or `/kr log`.
+- It starts with what the game's own guild log still holds, then adds to it each time you log in or open it, so the history stays after the game drops it. Each officer has their own copy, and "Clear guild data" doesn't erase it.
+- Times are to the nearest hour, because that's all the game gives. Click a line to open that player's card.
+
 ## 2.7.0
 - The guild's ten ranks now have their real names in the game, so the addon's separate Kor'kron titles are gone. The Rank column, player card, inactivity report and tooltips all show each member's actual rank.
 - **Set Rank** lists the guild's ranks below your own, and every change goes through the Confirm box. The game's guild rank permissions still apply.

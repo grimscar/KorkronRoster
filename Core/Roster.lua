@@ -64,11 +64,8 @@ function Roster:Scan()
             if online then
                 m.lastOnline = now
             elseif GetGuildRosterLastOnline then
-                local years, months, days, hours = GetGuildRosterLastOnline(i)
-                -- (readable first: even testing a hidden value for nil throws)
-                if KR.Readable(years) and KR.Readable(months) and KR.Readable(days) and KR.Readable(hours) and years then
-                    m.lastOnline = now - ((((years * 365) + (months * 30) + days) * 24) + hours) * 3600
-                end
+                local away = KR.ElapsedSeconds(GetGuildRosterLastOnline(i))
+                if away then m.lastOnline = now - away end
             end
         end
     end

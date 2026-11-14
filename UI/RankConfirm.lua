@@ -14,8 +14,8 @@ local frame, confirm
 local pending -- { m, plan }
 
 local function Build()
-    frame = CreateFrame("Frame", "KorkronRankConfirm", UIParent, "BasicFrameTemplateWithInset")
-    frame:SetSize(340, 150)
+    frame = CreateFrame("Frame", "KorkronRankConfirm", UIParent)
+    frame:SetSize(340, 158)
     frame:SetPoint("CENTER", 0, 120)
     frame:SetFrameStrata("DIALOG")
     frame:EnableMouse(true)
@@ -26,19 +26,18 @@ local function Build()
     frame:Hide()
     tinsert(UISpecialFrames, "KorkronRankConfirm")
     UI.MakePopup(frame)
+    KR.Style.Window(frame, "Change Rank")
 
-    frame.title = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    frame.title:SetPoint("TOP", frame.TitleBg or frame, "TOP", 0, -3)
-    frame.title:SetText("Change Rank")
-
-    frame.text = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    frame.text:SetPoint("TOPLEFT", 18, -36)
+    frame.text = frame:CreateFontString(nil, "OVERLAY", "KorkronRosterFontHighlight")
+    frame.text:SetPoint("TOPLEFT", 18, KR.Style.TOP - 6)
     frame.text:SetPoint("RIGHT", frame, "RIGHT", -18, 0)
     frame.text:SetJustifyH("LEFT")
     frame.text:SetSpacing(3)
 
-    confirm = CreateFrame("Button", "KorkronRankConfirmButton", frame, "SecureActionButtonTemplate,UIPanelButtonTemplate")
+    confirm = CreateFrame("Button", "KorkronRankConfirmButton", frame, "SecureActionButtonTemplate")
     confirm:SetSize(120, 24)
+    KR.Style.Button(confirm)
+    KR.Style.SetButtonKind(confirm, true)
     confirm:SetPoint("BOTTOMRIGHT", frame, "BOTTOM", -6, 14)
     confirm:SetText("Confirm")
     -- fire on exactly one of down/up: whichever the client's secure buttons act on
@@ -52,8 +51,7 @@ local function Build()
         if p then KR.Ranks.Applied(p.m, p.plan) end
     end)
 
-    local cancel = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
-    cancel:SetSize(120, 24)
+    local cancel = UI.Button(frame, 120, 24)
     cancel:SetPoint("BOTTOMLEFT", frame, "BOTTOM", 6, 14)
     cancel:SetText(CANCEL or "Cancel")
     cancel:SetScript("OnClick", function() frame:Hide() end)

@@ -1,17 +1,18 @@
 -- Kor'kron Roster: player card (click a name in the roster).
 local _, KR = ...
 
-local UI = KR.UI
+local UI, Style = KR.UI, KR.Style
 local Card = {}
 UI.MemberCard = Card
 
 local WIDTH = 360
+local TOP = Style.TOP
 local NO_MAIN = "No main (characters listed separately)"
 
 local frame, member
 
 local function Label(parent, template, x, y, width)
-    local fs = parent:CreateFontString(nil, "OVERLAY", template or "GameFontHighlightSmall")
+    local fs = parent:CreateFontString(nil, "OVERLAY", template or "KorkronRosterFontHighlightSmall")
     fs:SetPoint("TOPLEFT", x, y)
     if width then fs:SetWidth(width) end
     fs:SetJustifyH("LEFT")
@@ -19,7 +20,7 @@ local function Label(parent, template, x, y, width)
 end
 
 local function Header(parent, text, y)
-    local fs = Label(parent, "GameFontNormal", 16, y)
+    local fs = Label(parent, "KorkronRosterFontNormal", 16, y)
     fs:SetText(text)
     local line = parent:CreateTexture(nil, "ARTWORK")
     line:SetHeight(1)
@@ -70,7 +71,7 @@ local function ProfLine(parent, y)
     btn.icon = btn:CreateTexture(nil, "ARTWORK")
     btn.icon:SetSize(16, 16)
     btn.icon:SetPoint("LEFT")
-    btn.text = btn:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    btn.text = btn:CreateFontString(nil, "OVERLAY", "KorkronRosterFontHighlightSmall")
     btn.text:SetPoint("LEFT", btn.icon, "RIGHT", 6, 0)
     btn.text:SetPoint("RIGHT")
     btn.text:SetJustifyH("LEFT")
@@ -84,8 +85,8 @@ local function ProfLine(parent, y)
 end
 
 local function Build()
-    frame = CreateFrame("Frame", "KorkronMemberCard", UIParent, "BasicFrameTemplateWithInset")
-    frame:SetSize(WIDTH, 484)
+    frame = CreateFrame("Frame", "KorkronMemberCard", UIParent)
+    frame:SetSize(WIDTH, 492)
     frame:SetMovable(true)
     frame:SetClampedToScreen(true)
     frame:EnableMouse(true)
@@ -96,20 +97,17 @@ local function Build()
     frame:Hide()
     tinsert(UISpecialFrames, "KorkronMemberCard")
     UI.MakePopup(frame)
-
-    frame.title = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    frame.title:SetPoint("TOP", frame.TitleBg or frame, "TOP", 0, -3)
-    frame.title:SetText("Player Card")
+    Style.Window(frame, "Player Card")
 
     frame.classIcon = frame:CreateTexture(nil, "ARTWORK")
     frame.classIcon:SetSize(40, 40)
-    frame.classIcon:SetPoint("TOPLEFT", 16, -32)
+    frame.classIcon:SetPoint("TOPLEFT", 16, TOP - 2)
     frame.classIcon:SetTexture(KR.CLASS_ICON_TEXTURE)
 
-    frame.name = Label(frame, "GameFontNormalLarge", 64, -32, WIDTH - 80)
-    frame.info = Label(frame, "GameFontHighlightSmall", 64, -52, WIDTH - 180)
-    frame.rank = Label(frame, "GameFontHighlightSmall", 64, -66, WIDTH - 180)
-    frame.status = Label(frame, "GameFontHighlightSmall", 64, -80, WIDTH - 80)
+    frame.name = Label(frame, "KorkronRosterFontNormalLarge", 64, TOP - 2, WIDTH - 80)
+    frame.info = Label(frame, "KorkronRosterFontHighlightSmall", 64, TOP - 22, WIDTH - 180)
+    frame.rank = Label(frame, "KorkronRosterFontHighlightSmall", 64, TOP - 36, WIDTH - 180)
+    frame.status = Label(frame, "KorkronRosterFontHighlightSmall", 64, TOP - 50, WIDTH - 80)
     -- one line each: long text gets "..." instead of wrapping over the next line
     for _, fs in ipairs({ frame.name, frame.info, frame.rank, frame.status }) do
         fs:SetWordWrap(false)
@@ -117,9 +115,8 @@ local function Build()
 
 
     -- officers and the GM: change rank
-    frame.setRank = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
-    frame.setRank:SetSize(90, 20)
-    frame.setRank:SetPoint("TOPRIGHT", -16, -54)
+    frame.setRank = UI.Button(frame, 90, 20)
+    frame.setRank:SetPoint("TOPRIGHT", -16, TOP - 24)
     frame.setRank:SetText("Set Rank")
     frame.setRank:SetScript("OnClick", function(self) UI.ShowRankMenu(self, member) end)
     frame.setRank:SetScript("OnEnter", function(self)
@@ -131,14 +128,13 @@ local function Build()
     frame.setRank:SetScript("OnLeave", function() GameTooltip:Hide() end)
 
     -- main / alts
-    Header(frame, "Main & Alts", -104)
-    frame.family = Label(frame, "GameFontHighlightSmall", 20, -124, WIDTH - 40)
+    Header(frame, "Main & Alts", TOP - 74)
+    frame.family = Label(frame, "KorkronRosterFontHighlightSmall", 20, TOP - 94, WIDTH - 40)
     frame.family:SetWordWrap(true)
 
-    frame.mainLabel = Label(frame, "GameFontNormalSmall", 20, -154)
+    frame.mainLabel = Label(frame, "KorkronRosterFontNormalSmall", 20, TOP - 124)
     frame.mainLabel:SetText("Your main:")
-    local picker = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
-    picker:SetSize(230, 22)
+    local picker = UI.Button(frame, 230)
     picker:SetPoint("LEFT", frame.mainLabel, "RIGHT", 8, 0)
     picker:SetScript("OnClick", function(self) ShowMainMenu(self) end)
     picker:SetScript("OnEnter", function(self)
@@ -151,9 +147,8 @@ local function Build()
     picker:SetScript("OnLeave", function() GameTooltip:Hide() end)
     frame.picker = picker
 
-    frame.viewMain = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
-    frame.viewMain:SetSize(110, 22)
-    frame.viewMain:SetPoint("TOPRIGHT", -16, -148)
+    frame.viewMain = UI.Button(frame, 110)
+    frame.viewMain:SetPoint("TOPRIGHT", -16, TOP - 118)
     frame.viewMain:SetText("View Main")
     frame.viewMain:SetScript("OnClick", function()
         local main = member and member.main and KR.DB:GetMember(member.main)
@@ -161,26 +156,25 @@ local function Build()
     end)
 
     -- professions
-    Header(frame, "Professions", -186)
+    Header(frame, "Professions", TOP - 156)
     frame.profs = {}
-    for i = 1, 5 do frame.profs[i] = ProfLine(frame, -204 - (i - 1) * 19) end
+    for i = 1, 5 do frame.profs[i] = ProfLine(frame, TOP - 174 - (i - 1) * 19) end
 
     -- pvp
-    Header(frame, "PvP", -306)
-    frame.pvp = Label(frame, "GameFontHighlightSmall", 20, -324, WIDTH - 40)
+    Header(frame, "PvP", TOP - 276)
+    frame.pvp = Label(frame, "KorkronRosterFontHighlightSmall", 20, TOP - 294, WIDTH - 40)
     frame.pvp:SetSpacing(2)
 
     -- notes
-    Header(frame, "Notes", -366)
-    frame.notes = Label(frame, "GameFontHighlightSmall", 20, -384, WIDTH - 40)
+    Header(frame, "Notes", TOP - 336)
+    frame.notes = Label(frame, "KorkronRosterFontHighlightSmall", 20, TOP - 354, WIDTH - 40)
     frame.notes:SetWordWrap(true)
     frame.notes:SetSpacing(2)
 
-    frame.footer = frame:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+    frame.footer = frame:CreateFontString(nil, "OVERLAY", "KorkronRosterFontDisableSmall")
     frame.footer:SetPoint("BOTTOMLEFT", 16, 14)
 
-    frame.whisper = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
-    frame.whisper:SetSize(90, 22)
+    frame.whisper = UI.Button(frame, 90)
     frame.whisper:SetPoint("BOTTOMRIGHT", -12, 10)
     frame.whisper:SetText("Whisper")
     frame.whisper:SetScript("OnClick", function() UI.Whisper(member) end)

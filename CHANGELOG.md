@@ -1,5 +1,8 @@
 # Changelog
 
+## 2.9.0
+- **A new look, shared by all the Kor'kron mods:** iron frames with a blood-red title band, new lettering, darker buttons with the open tab and the main action in red, slim scroll bars, check boxes and menus, and a round minimap button. The options page in the game's Settings and the tab on the game's guild window keep the game's look. After updating, restart the game once (not just `/reload`) so the new art and lettering load.
+
 ## 2.8.0
 - New **Guild Log** for officers (Hearth-Caller and up): who joined, left, was kicked, promoted or demoted, by whom and when, newest first. Open it with the **Guild Log** button on the Roster tab or `/kr log`.
 - It starts with what the game's own guild log still holds, then adds to it each time you log in or open it, so the history stays after the game drops it. Each officer has their own copy, and "Clear guild data" doesn't erase it.

@@ -1,6 +1,7 @@
--- Kor'kron Roster: shared UI building blocks.
+-- Kor'kron Roster: shared UI building blocks, in the Kor'kron look (UI/Style.lua).
 local _, KR = ...
 
+local Style = KR.Style
 local UI = {}
 KR.UI = UI
 
@@ -16,6 +17,7 @@ function UI.CreateList(parent, name, rowHeight, createRow, updateRow)
     local scroll = CreateFrame("ScrollFrame", name .. "Scroll", list, "UIPanelScrollFrameTemplate")
     scroll:SetPoint("TOPLEFT", 0, 0)
     scroll:SetPoint("BOTTOMRIGHT", -22, 0)
+    Style.ScrollBar(scroll)
     local child = CreateFrame("Frame", nil, scroll)
     child:SetSize(1, 1)
     scroll:SetScrollChild(child)
@@ -101,35 +103,45 @@ function UI.MakePopup(frame)
     frame:HookScript("OnShow", function(self) self:Raise() end)
 end
 
+-- a button in the Kor'kron look
+function UI.Button(parent, width, height)
+    local btn = CreateFrame("Button", nil, parent)
+    btn:SetSize(width, height or 22)
+    Style.Button(btn)
+    return btn
+end
+
+-- a check box; its label is the caller's
+function UI.CheckButton(parent)
+    local cb = CreateFrame("CheckButton", nil, parent)
+    cb:SetSize(24, 24)
+    Style.CheckBox(cb)
+    return cb
+end
+
+-- a one-line text box
+function UI.EditBox(parent, width, name)
+    local box = CreateFrame("EditBox", name, parent, "BackdropTemplate")
+    box:SetSize(width, 20)
+    box:SetAutoFocus(false)
+    Style.EditBox(box)
+    return box
+end
+
 -- dropdown menu --------------------------------------------------------------------------
 -- options: { label, value, selected, header } ; onPick(option) runs when one is clicked.
 -- One shared menu; Escape or clicking the same anchor again closes it.
 
 local menu
-local MENU_ROW = 16
-local MENU_PAD = 15 -- room for the dialog border, like Blizzard's dropdown lists
-
--- same look as the game's own dropdown lists: dark dialog background, grey dialog border
-local MENU_BACKDROP = {
-    bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background-Dark",
-    edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
-    tile = true, tileSize = 32, edgeSize = 32,
-    insets = { left = 11, right = 12, top = 12, bottom = 11 },
-}
+local MENU_ROW = 18
+local MENU_PAD = 6
 
 local function BuildMenu()
-    menu = CreateFrame("Frame", "KorkronDropDownMenu", UIParent, BackdropTemplateMixin and "BackdropTemplate" or nil)
+    menu = CreateFrame("Frame", "KorkronDropDownMenu", UIParent, "BackdropTemplate")
     menu:SetFrameStrata("FULLSCREEN_DIALOG")
     menu:SetClampedToScreen(true)
     menu:EnableMouse(true)
-    if menu.SetBackdrop then
-        menu:SetBackdrop(MENU_BACKDROP)
-    else
-        local bg = menu:CreateTexture(nil, "BACKGROUND")
-        bg:SetPoint("TOPLEFT", 11, -12)
-        bg:SetPoint("BOTTOMRIGHT", -12, 11)
-        bg:SetColorTexture(0, 0, 0, 0.9)
-    end
+    Style.Panel(menu)
     menu.buttons = {}
     menu:Hide()
     tinsert(UISpecialFrames, "KorkronDropDownMenu")
@@ -142,15 +154,13 @@ local function MenuButton(i)
     btn:SetHeight(MENU_ROW)
     btn:SetPoint("TOPLEFT", MENU_PAD, -MENU_PAD - (i - 1) * MENU_ROW)
     btn:SetPoint("RIGHT", menu, "RIGHT", -MENU_PAD, 0)
+    local gold = Style.COLOR.gold
     btn.hl = btn:CreateTexture(nil, "HIGHLIGHT")
     btn.hl:SetAllPoints()
-    btn.hl:SetTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight")
-    btn.hl:SetBlendMode("ADD")
-    btn.check = btn:CreateTexture(nil, "ARTWORK")
-    btn.check:SetSize(16, 16)
-    btn.check:SetPoint("LEFT", 0, 0)
-    btn.check:SetTexture("Interface\\Buttons\\UI-CheckBox-Check")
-    btn.text = btn:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    btn.hl:SetColorTexture(gold[1], gold[2], gold[3], 0.12)
+    btn.check = Style.Tick(btn, 14)
+    btn.check:SetPoint("LEFT", 1, 0)
+    btn.text = btn:CreateFontString(nil, "OVERLAY", "KorkronRosterFontHighlightSmall")
     btn.text:SetPoint("RIGHT", 0, 0)
     btn.text:SetJustifyH("LEFT")
     btn:SetScript("OnClick", function(self)
@@ -176,13 +186,13 @@ function UI.ShowMenu(anchor, options, onPick, width)
         btn.text:SetPoint("RIGHT", 0, 0)
         if opt.header then
             -- section titles: gold, flush left, not clickable (like Blizzard's menu titles)
-            btn.text:SetFontObject("GameFontNormalSmall")
+            btn.text:SetFontObject("KorkronRosterFontNormalSmall")
             btn.text:SetPoint("LEFT", 0, 0)
             btn.text:SetText(opt.header)
             btn.check:Hide()
             btn:EnableMouse(false)
         else
-            btn.text:SetFontObject("GameFontHighlightSmall")
+            btn.text:SetFontObject("KorkronRosterFontHighlightSmall")
             btn.text:SetPoint("LEFT", 18, 0)
             btn.text:SetText(opt.label)
             btn.check:SetShown(opt.selected and true or false)
@@ -192,7 +202,7 @@ function UI.ShowMenu(anchor, options, onPick, width)
     end
     for i = #options + 1, #menu.buttons do menu.buttons[i]:Hide() end
     menu:ClearAllPoints()
-    menu:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", -MENU_PAD + 4, 4)
+    menu:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 0, -2)
     menu:SetSize((width or math.max(160, anchor:GetWidth())) + MENU_PAD * 2, #options * MENU_ROW + MENU_PAD * 2)
     menu:Show()
     menu:Raise()
@@ -216,7 +226,7 @@ function UI.CreateCell(parent, height)
     cell:RegisterForClicks("LeftButtonUp", "RightButtonUp")
     cell.icon = cell:CreateTexture(nil, "ARTWORK")
     cell.icon:SetSize(16, 16)
-    cell.text = cell:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    cell.text = cell:CreateFontString(nil, "OVERLAY", "KorkronRosterFontHighlightSmall")
     if cell.text.SetWordWrap then cell.text:SetWordWrap(false) end
     return cell
 end

@@ -3,13 +3,15 @@
 -- buttons for what you may do with it, and ready-made whispers between the requester and the crafter.
 local _, KR = ...
 
-local UI = KR.UI
+local UI, Style = KR.UI, KR.Style
 local Card = {}
 UI.WorkOrderCard = Card
 
-local WIDTH, MIN_HEIGHT = 380, 440
--- the card's height around its texts: above the first, each section's gap and header, below the last
-local TOP, SECTION, BOTTOM = 84, 34, 104
+local WIDTH, MIN_HEIGHT = 380, 448
+local ICON_Y = Style.TOP - 2 -- the item's icon, under the title band
+-- the card's height around its texts: above the first (the band and the icon), each section's gap and header,
+-- below the last
+local TOP, SECTION, BOTTOM = 52 - ICON_Y, 34, 104
 local CHAT_MAX = 255 -- longest chat message, in bytes
 
 local frame, order
@@ -211,8 +213,7 @@ local function ActionClick(btn)
 end
 
 local function Button(label, width, onClick)
-    local btn = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
-    btn:SetSize(width, 22)
+    local btn = UI.Button(frame, width)
     btn:SetText(label)
     btn:SetScript("OnClick", function(self) KR.Safe(onClick, self) end)
     return btn
@@ -228,7 +229,7 @@ end
 
 -- a gold section title with a faint line to the right edge; the caller places it
 local function Header(text)
-    local fs = Label("GameFontNormal")
+    local fs = Label("KorkronRosterFontNormal")
     fs:SetText(text)
     fs.line = frame:CreateTexture(nil, "ARTWORK")
     fs.line:SetHeight(1)
@@ -241,7 +242,7 @@ end
 -- text under a header, as wide as the card, growing with what it holds (a set width, so its height
 -- can be measured straight after SetText)
 local function Body(header)
-    local fs = Label("GameFontHighlightSmall")
+    local fs = Label("KorkronRosterFontHighlightSmall")
     fs:SetPoint("TOPLEFT", header, "BOTTOMLEFT", 4, -6)
     fs:SetWidth(WIDTH - 36)
     fs:SetSpacing(2)
@@ -249,7 +250,7 @@ local function Body(header)
 end
 
 local function Build()
-    frame = CreateFrame("Frame", "KorkronWorkOrderCard", UIParent, "BasicFrameTemplateWithInset")
+    frame = CreateFrame("Frame", "KorkronWorkOrderCard", UIParent)
     frame:SetSize(WIDTH, MIN_HEIGHT)
     frame:SetMovable(true)
     frame:SetClampedToScreen(true)
@@ -261,14 +262,11 @@ local function Build()
     frame:Hide()
     tinsert(UISpecialFrames, "KorkronWorkOrderCard")
     UI.MakePopup(frame)
-
-    frame.title = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    frame.title:SetPoint("TOP", frame.TitleBg or frame, "TOP", 0, -3)
-    frame.title:SetText("|cffc41f3bKor'kron|r - Work Order")
+    Style.Window(frame, "|cffc41f3bKor'kron|r - Work Order")
 
     local icon = CreateFrame("Button", nil, frame)
     icon:SetSize(42, 42)
-    icon:SetPoint("TOPLEFT", 16, -32)
+    icon:SetPoint("TOPLEFT", 16, ICON_Y)
     icon.texture = icon:CreateTexture(nil, "ARTWORK")
     icon.texture:SetAllPoints()
     icon:SetScript("OnEnter", function(self) UI.ItemTooltip(self, order) end)
@@ -278,16 +276,16 @@ local function Build()
     end)
     frame.icon = icon
 
-    frame.name = Label("GameFontNormalLarge")
+    frame.name = Label("KorkronRosterFontNormalLarge")
     frame.name:SetPoint("TOPLEFT", icon, "TOPRIGHT", 10, -2)
     frame.name:SetPoint("RIGHT", -16, 0)
     frame.name:SetWordWrap(false)
-    frame.sub = Label("GameFontHighlightSmall")
+    frame.sub = Label("KorkronRosterFontHighlightSmall")
     frame.sub:SetPoint("TOPLEFT", frame.name, "BOTTOMLEFT", 0, -6)
     frame.sub:SetPoint("RIGHT", -16, 0)
     frame.sub:SetWordWrap(false)
 
-    frame.people = Label("GameFontHighlightSmall")
+    frame.people = Label("KorkronRosterFontHighlightSmall")
     frame.people:SetPoint("TOPLEFT", icon, "BOTTOMLEFT", 0, -10)
     frame.people:SetWidth(WIDTH - 32)
     frame.people:SetSpacing(2)

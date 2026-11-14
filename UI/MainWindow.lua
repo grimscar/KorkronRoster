@@ -1,10 +1,11 @@
 -- Kor'kron Roster: the main roster window (Roster, Professions, PvP, Recipes and Work Orders tabs).
 local _, KR = ...
 
-local UI = KR.UI
+local UI, Style = KR.UI, KR.Style
 local Main = {}
 UI.Main = Main
 
+local TOP = Style.TOP -- the tab row
 local ROW_HEIGHT = 20
 local MAX_COLUMNS = 8
 local FRAME_WIDTH = 980
@@ -680,7 +681,7 @@ local function UpdateHeaders()
         local col = tab.columns[i]
         if col then
             hdr:ClearAllPoints()
-            hdr:SetPoint("TOPLEFT", frame, "TOPLEFT", x, -62)
+            hdr:SetPoint("TOPLEFT", frame, "TOPLEFT", x, TOP - 32)
             hdr:SetWidth(col.width)
             hdr.col = col
             hdr.text:SetJustifyH(col.align or "LEFT")
@@ -694,7 +695,7 @@ local function UpdateHeaders()
         end
     end
     for _, btn in ipairs(tabButtons) do
-        if btn.tabId == tab.id then btn:Disable() else btn:Enable() end
+        Style.SetButtonKind(btn, btn.tabId == tab.id)
     end
     frame.mainsOnly:SetShown(tab.rosterTools and true or false)
     frame.mainsOnly.label:SetShown(tab.rosterTools and true or false)
@@ -760,8 +761,8 @@ function Main:SelectTab(id)
 end
 
 local function Build()
-    frame = CreateFrame("Frame", "KorkronRosterMainFrame", UIParent, "BasicFrameTemplateWithInset")
-    frame:SetSize(FRAME_WIDTH, 520)
+    frame = CreateFrame("Frame", "KorkronRosterMainFrame", UIParent)
+    frame:SetSize(FRAME_WIDTH, 528)
     frame:SetPoint("CENTER")
     frame:SetMovable(true)
     frame:SetResizable(true)
@@ -780,19 +781,16 @@ local function Build()
     frame:Hide()
     tinsert(UISpecialFrames, "KorkronRosterMainFrame")
     UI.MakePopup(frame)
-
-    frame.title = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    frame.title:SetPoint("TOP", frame.TitleBg or frame, "TOP", 0, -3)
+    Style.Window(frame, "")
 
     -- tab buttons
     local prev
     for _, tab in ipairs(TABS) do
-        local btn = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
-        btn:SetSize(TAB_WIDTH, 22)
+        local btn = UI.Button(frame, TAB_WIDTH)
         if prev then
             btn:SetPoint("LEFT", prev, "RIGHT", 4, 0)
         else
-            btn:SetPoint("TOPLEFT", frame, "TOPLEFT", 12, -30)
+            btn:SetPoint("TOPLEFT", frame, "TOPLEFT", 12, TOP)
         end
         btn:SetText(tab.label)
         btn.tabId = tab.id
@@ -802,12 +800,10 @@ local function Build()
     end
 
     -- search
-    local search = CreateFrame("EditBox", "KorkronRosterSearchBox", frame, "InputBoxTemplate")
-    search:SetSize(170, 20)
-    search:SetPoint("LEFT", prev, "RIGHT", 16, 0)
-    search:SetAutoFocus(false)
-    search.placeholder = search:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
-    search.placeholder:SetPoint("LEFT", 2, 0)
+    local search = UI.EditBox(frame, 170, "KorkronRosterSearchBox")
+    search:SetPoint("LEFT", prev, "RIGHT", 12, 0)
+    search.placeholder = search:CreateFontString(nil, "OVERLAY", "KorkronRosterFontDisableSmall")
+    search.placeholder:SetPoint("LEFT", 6, 0)
     search.placeholder:SetText("Search names, professions, recipes")
     search:SetScript("OnTextChanged", function(self)
         searchText = Lower(strtrim(self:GetText() or ""))
@@ -821,10 +817,9 @@ local function Build()
     search:SetScript("OnEnterPressed", function(self) self:ClearFocus() end)
 
     -- offline toggle
-    local offline = CreateFrame("CheckButton", nil, frame, "UICheckButtonTemplate")
-    offline:SetSize(24, 24)
+    local offline = UI.CheckButton(frame)
     offline:SetPoint("LEFT", search, "RIGHT", 12, 0)
-    offline.label = offline:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    offline.label = offline:CreateFontString(nil, "OVERLAY", "KorkronRosterFontNormalSmall")
     offline.label:SetPoint("LEFT", offline, "RIGHT", 2, 0)
     offline.label:SetText("Show offline")
     offline:SetScript("OnClick", function(self)
@@ -834,9 +829,8 @@ local function Build()
     frame.offlineCheck = offline
 
     -- sync
-    local sync = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
-    sync:SetSize(90, 22)
-    sync:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -12, -30)
+    local sync = UI.Button(frame, 90)
+    sync:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -12, TOP)
     sync:SetText("Sync Guild")
     sync:SetScript("OnClick", function()
         KR.Roster:Request()
@@ -859,18 +853,19 @@ local function Build()
     for i = 1, MAX_COLUMNS do
         local hdr = CreateFrame("Button", nil, frame)
         hdr:SetHeight(20)
+        local C = Style.COLOR
         hdr.bg = hdr:CreateTexture(nil, "BACKGROUND")
         hdr.bg:SetAllPoints()
-        hdr.bg:SetColorTexture(0.15, 0.15, 0.15, 0.9)
+        hdr.bg:SetColorTexture(C.button[1], C.button[2], C.button[3], 0.9)
         local line = hdr:CreateTexture(nil, "BORDER")
         line:SetPoint("BOTTOMLEFT")
         line:SetPoint("BOTTOMRIGHT")
         line:SetHeight(1)
-        line:SetColorTexture(0.4, 0.4, 0.4, 0.8)
+        line:SetColorTexture(C.iron[1], C.iron[2], C.iron[3], 1)
         local hl = hdr:CreateTexture(nil, "HIGHLIGHT")
         hl:SetAllPoints()
         hl:SetColorTexture(1, 1, 1, 0.08)
-        hdr.text = hdr:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+        hdr.text = hdr:CreateFontString(nil, "OVERLAY", "KorkronRosterFontNormalSmall")
         hdr.text:SetPoint("LEFT", 4, 0)
         hdr.text:SetPoint("RIGHT", -4, 0)
         hdr:SetScript("OnClick", function(self)
@@ -888,19 +883,18 @@ local function Build()
     end
 
     list = UI.CreateList(frame, "KorkronRosterList", ROW_HEIGHT, CreateRow, UpdateRow)
-    list:SetPoint("TOPLEFT", frame, "TOPLEFT", 14, -84)
+    list:SetPoint("TOPLEFT", frame, "TOPLEFT", 14, TOP - 54)
     list:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -12, 30)
 
-    frame.status = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    frame.status = frame:CreateFontString(nil, "OVERLAY", "KorkronRosterFontHighlightSmall")
     frame.status:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", 16, 11)
 
-    local version = frame:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
-    version:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -30, -7)
+    local version = frame:CreateFontString(nil, "OVERLAY", "KorkronRosterFontDisableSmall")
+    version:SetPoint("RIGHT", frame, "TOPRIGHT", -34, -Style.BAND / 2)
     version:SetText("v" .. KR.version)
 
     -- roster tab tools, bottom right
-    local inactivity = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
-    inactivity:SetSize(100, 22)
+    local inactivity = UI.Button(frame, 100)
     inactivity:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -24, 6)
     inactivity:SetText("Inactivity")
     inactivity:SetScript("OnClick", function() UI.Inactivity:Toggle() end)
@@ -914,8 +908,8 @@ local function Build()
     frame.inactivity = inactivity
 
     -- work orders tab tool, same corner
-    local newOrder = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
-    newOrder:SetSize(140, 22)
+    local newOrder = UI.Button(frame, 140)
+    Style.SetButtonKind(newOrder, true)
     newOrder:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -24, 6)
     newOrder:SetText("New Work Order")
     newOrder:SetScript("OnClick", function() UI.WorkOrderForm:Open() end)
@@ -928,9 +922,8 @@ local function Build()
     newOrder:SetScript("OnLeave", function() GameTooltip:Hide() end)
     frame.newOrder = newOrder
 
-    local mains = CreateFrame("CheckButton", nil, frame, "UICheckButtonTemplate")
-    mains:SetSize(24, 24)
-    mains.label = mains:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    local mains = UI.CheckButton(frame)
+    mains.label = mains:CreateFontString(nil, "OVERLAY", "KorkronRosterFontNormalSmall")
     mains.label:SetText("Mains only")
     mains.label:SetPoint("RIGHT", inactivity, "LEFT", -12, 0)
     mains:SetPoint("RIGHT", mains.label, "LEFT", -2, 0)
@@ -949,8 +942,7 @@ local function Build()
     frame.mainsOnly = mains
 
     -- officers only; left of Mains only so that row doesn't move for everyone else
-    local guildLog = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
-    guildLog:SetSize(90, 22)
+    local guildLog = UI.Button(frame, 90)
     guildLog:SetPoint("RIGHT", mains, "LEFT", -8, 0)
     guildLog:SetText("Guild Log")
     guildLog:SetScript("OnClick", function() UI.GuildLog:Toggle() end)

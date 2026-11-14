@@ -1,7 +1,7 @@
 -- Kor'kron Roster: recipe browser for one member's profession.
 local _, KR = ...
 
-local UI = KR.UI
+local UI, Style = KR.UI, KR.Style
 local Inspector = {}
 UI.Inspector = Inspector
 
@@ -121,7 +121,7 @@ local function CreateRow(parent)
     row.icon = row:CreateTexture(nil, "ARTWORK")
     row.icon:SetSize(16, 16)
     row.icon:SetPoint("LEFT", 14, 0)
-    row.text = row:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    row.text = row:CreateFontString(nil, "OVERLAY", "KorkronRosterFontNormalSmall")
     row.text:SetPoint("RIGHT", -4, 0)
     row.text:SetJustifyH("LEFT")
     if row.text.SetWordWrap then row.text:SetWordWrap(false) end
@@ -167,7 +167,7 @@ local function ReagentButton(parent, i)
     rf.bg:SetPoint("TOPLEFT", rf.icon, "TOPRIGHT", 4, 0)
     rf.bg:SetPoint("BOTTOMRIGHT")
     rf.bg:SetColorTexture(0.15, 0.15, 0.15, 0.8)
-    rf.name = rf:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    rf.name = rf:CreateFontString(nil, "OVERLAY", "KorkronRosterFontHighlightSmall")
     rf.name:SetPoint("LEFT", rf.icon, "RIGHT", 8, 0)
     rf.name:SetWidth(84)
     rf.name:SetJustifyH("LEFT")
@@ -189,8 +189,8 @@ local function ReagentButton(parent, i)
 end
 
 local function Build()
-    frame = CreateFrame("Frame", "KorkronTradeSkillInspector", UIParent, "BasicFrameTemplateWithInset")
-    frame:SetSize(560, 440)
+    frame = CreateFrame("Frame", "KorkronTradeSkillInspector", UIParent)
+    frame:SetSize(560, 448)
     frame:SetPoint("CENTER", 200, 0)
     frame:SetMovable(true)
     frame:SetClampedToScreen(true)
@@ -202,32 +202,30 @@ local function Build()
     frame:Hide()
     tinsert(UISpecialFrames, "KorkronTradeSkillInspector")
     UI.MakePopup(frame)
+    Style.Window(frame, "")
 
+    -- the profession's icon, at the left of the title band
     frame.portrait = frame:CreateTexture(nil, "OVERLAY")
     frame.portrait:SetSize(20, 20)
-    frame.portrait:SetPoint("TOPLEFT", 6, -2)
-
-    frame.title = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    frame.title:SetPoint("TOP", frame.TitleBg or frame, "TOP", 0, -3)
+    frame.portrait:SetPoint("LEFT", frame, "TOPLEFT", 16, -Style.BAND / 2) -- clear of the corner spike
 
     local bar = CreateFrame("StatusBar", nil, frame)
     bar:SetSize(300, 16)
-    bar:SetPoint("TOPLEFT", 16, -32)
+    bar:SetPoint("TOPLEFT", 16, Style.TOP - 2)
     bar:SetStatusBarTexture("Interface\\TargetingFrame\\UI-StatusBar")
     bar:SetStatusBarColor(0.1, 0.45, 0.85, 1)
     bar.bg = bar:CreateTexture(nil, "BACKGROUND")
     bar.bg:SetAllPoints()
     bar.bg:SetColorTexture(0.05, 0.05, 0.05, 0.85)
-    bar.text = bar:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    bar.text = bar:CreateFontString(nil, "OVERLAY", "KorkronRosterFontHighlightSmall")
     bar.text:SetPoint("CENTER")
     frame.skillBar = bar
 
-    frame.updated = frame:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+    frame.updated = frame:CreateFontString(nil, "OVERLAY", "KorkronRosterFontDisableSmall")
     frame.updated:SetPoint("LEFT", bar, "RIGHT", 10, 0)
 
-    local whisper = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
-    whisper:SetSize(100, 22)
-    whisper:SetPoint("TOPRIGHT", -14, -28)
+    local whisper = UI.Button(frame, 100)
+    whisper:SetPoint("TOPRIGHT", -14, Style.TOP + 2)
     whisper:SetText("Whisper")
     whisper:SetScript("OnClick", function()
         local r = pickedByUser and detail.itemBtn:IsShown() and detail.itemBtn.recipe or nil
@@ -247,12 +245,10 @@ local function Build()
     whisper:SetScript("OnLeave", function() GameTooltip:Hide() end)
     frame.whisper = whisper
 
-    local search = CreateFrame("EditBox", "KorkronInspectorSearch", frame, "InputBoxTemplate")
-    search:SetSize(230, 20)
-    search:SetPoint("TOPLEFT", 20, -56)
-    search:SetAutoFocus(false)
-    search.placeholder = search:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
-    search.placeholder:SetPoint("LEFT", 2, 0)
+    local search = UI.EditBox(frame, 230, "KorkronInspectorSearch")
+    search:SetPoint("TOPLEFT", 16, Style.TOP - 26)
+    search.placeholder = search:CreateFontString(nil, "OVERLAY", "KorkronRosterFontDisableSmall")
+    search.placeholder:SetPoint("LEFT", 6, 0)
     search.placeholder:SetText("Search recipes")
     search:SetScript("OnTextChanged", function(self)
         searchText = string.lower(strtrim(self:GetText() or ""))
@@ -269,7 +265,7 @@ local function Build()
     frame.search = search
 
     local left = CreateFrame("Frame", nil, frame)
-    left:SetPoint("TOPLEFT", 12, -82)
+    left:SetPoint("TOPLEFT", 12, Style.TOP - 52)
     left:SetPoint("BOTTOMLEFT", 12, 12)
     left:SetWidth(260)
     left.bg = left:CreateTexture(nil, "BACKGROUND")
@@ -313,18 +309,18 @@ local function Build()
     end)
     detail.itemBtn = itemBtn
 
-    detail.name = detail:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+    detail.name = detail:CreateFontString(nil, "OVERLAY", "KorkronRosterFontNormalLarge")
     detail.name:SetPoint("TOPLEFT", itemBtn, "TOPRIGHT", 12, -2)
     detail.name:SetPoint("RIGHT", detail, "RIGHT", -10, 0)
     detail.name:SetJustifyH("LEFT")
 
-    detail.category = detail:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    detail.category = detail:CreateFontString(nil, "OVERLAY", "KorkronRosterFontHighlightSmall")
     detail.category:SetPoint("TOPLEFT", detail.name, "BOTTOMLEFT", 0, -4)
     detail.category:SetPoint("RIGHT", detail, "RIGHT", -10, 0)
     detail.category:SetJustifyH("LEFT")
     detail.category:SetTextColor(0.7, 0.7, 0.7)
 
-    detail.reagentHeader = detail:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    detail.reagentHeader = detail:CreateFontString(nil, "OVERLAY", "KorkronRosterFontNormalSmall")
     detail.reagentHeader:SetPoint("TOPLEFT", itemBtn, "BOTTOMLEFT", 0, -20)
     detail.reagentHeader:SetText("Reagents:")
 

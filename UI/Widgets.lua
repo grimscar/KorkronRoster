@@ -1,13 +1,9 @@
--- Kor'kron Roster: shared UI building blocks, in the Kor'kron look (UI/Style.lua).
 local _, KR = ...
 
 local Style = KR.Style
 local UI = {}
 KR.UI = UI
 
--- A scrolling list that only builds enough rows to fill its height, so a 500-member
--- guild costs the same as a 20-member one.
---   createRow(list) -> row          updateRow(row, item, index)
 function UI.CreateList(parent, name, rowHeight, createRow, updateRow)
     local list = CreateFrame("Frame", name, parent)
     list.rowHeight = rowHeight
@@ -62,7 +58,6 @@ function UI.CreateList(parent, name, rowHeight, createRow, updateRow)
         end
     end
 
-    -- the scroll range is sized so the last item lands exactly on the last visible row
     function list:Layout()
         child:SetWidth(math.max(1, scroll:GetWidth()))
         local hidden = math.max(0, #self.items - self:VisibleCount())
@@ -82,7 +77,6 @@ function UI.CreateList(parent, name, rowHeight, createRow, updateRow)
         scroll:SetVerticalScroll(0)
     end
 
-    -- rows sit above the scroll frame, so they forward the mouse wheel to it
     function list:Scroll(delta)
         local bar = scroll.ScrollBar or _G[scroll:GetName() .. "ScrollBar"]
         if bar then bar:SetValue(bar:GetValue() - delta * rowHeight * 3) end
@@ -95,15 +89,11 @@ function UI.CreateList(parent, name, rowHeight, createRow, updateRow)
     return list
 end
 
--- Pop-up windows share a strata. Without their own frame levels, two overlapping windows
--- interleave draw layers and each one's text shows through the other. Toplevel frames are
--- raised when clicked; we also raise them whenever they are shown or reused.
 function UI.MakePopup(frame)
     frame:SetToplevel(true)
     frame:HookScript("OnShow", function(self) self:Raise() end)
 end
 
--- a button in the Kor'kron look
 function UI.Button(parent, width, height)
     local btn = CreateFrame("Button", nil, parent)
     btn:SetSize(width, height or 22)
@@ -111,7 +101,6 @@ function UI.Button(parent, width, height)
     return btn
 end
 
--- a check box; its label is the caller's
 function UI.CheckButton(parent)
     local cb = CreateFrame("CheckButton", nil, parent)
     cb:SetSize(24, 24)
@@ -119,7 +108,6 @@ function UI.CheckButton(parent)
     return cb
 end
 
--- a one-line text box
 function UI.EditBox(parent, width, name)
     local box = CreateFrame("EditBox", name, parent, "BackdropTemplate")
     box:SetSize(width, 20)
@@ -127,10 +115,6 @@ function UI.EditBox(parent, width, name)
     Style.EditBox(box)
     return box
 end
-
--- dropdown menu --------------------------------------------------------------------------
--- options: { label, value, selected, header } ; onPick(option) runs when one is clicked.
--- One shared menu; Escape or clicking the same anchor again closes it.
 
 local menu
 local MENU_ROW = 18
@@ -185,7 +169,6 @@ function UI.ShowMenu(anchor, options, onPick, width)
         btn.text:ClearAllPoints()
         btn.text:SetPoint("RIGHT", 0, 0)
         if opt.header then
-            -- section titles: gold, flush left, not clickable (like Blizzard's menu titles)
             btn.text:SetFontObject("KorkronRosterFontNormalSmall")
             btn.text:SetPoint("LEFT", 0, 0)
             btn.text:SetText(opt.header)
@@ -212,14 +195,12 @@ function UI.HideMenu()
     if menu then menu:Hide() end
 end
 
--- the rank picker, shared by the player card and the Roster tab
 function UI.ShowRankMenu(anchor, m)
     UI.ShowMenu(anchor, KR.Ranks.Options(m), function(opt)
         KR.Ranks.Choose(m, opt.index)
     end, 200)
 end
 
--- a clickable table cell with an optional icon
 function UI.CreateCell(parent, height)
     local cell = CreateFrame("Button", nil, parent)
     cell:SetHeight(height)
@@ -231,7 +212,6 @@ function UI.CreateCell(parent, height)
     return cell
 end
 
--- text and/or icon; coords crop the icon (class sheet), iconOnly centres it
 function UI.SetCell(cell, align, text, icon, coords)
     cell.text:ClearAllPoints()
     cell.icon:ClearAllPoints()
@@ -264,15 +244,11 @@ function UI.ColoredName(m)
     return "|cff" .. KR.ClassColorHex(m.class) .. name .. "|r"
 end
 
--- someone named on a work order, class-coloured like the roster while they're still in the guild
--- g (optional): the guild table, when showing many names at once
 function UI.PersonText(name, g)
     local m = name and KR.DB:GetMember(name, false, g)
     return m and UI.ColoredName(m) or ("|cff808080" .. (name or "") .. "|r")
 end
 
--- a recipe index entry's crafters as member records: online ones, then offline ones
--- g (optional): the guild table, when checking many recipes at once
 function UI.CraftersSorted(e, g)
     g = g or KR.DB:GetGuild()
     local online, offline = {}, {}
@@ -283,8 +259,6 @@ function UI.CraftersSorted(e, g)
     return online, offline
 end
 
--- "Name, Name, Name": online crafters first in class colour, offline ones grey; with max, at
--- most that many names and then "+N"
 function UI.CrafterList(e, max)
     local online, offline = UI.CraftersSorted(e)
     local names = {}
@@ -296,7 +270,6 @@ function UI.CrafterList(e, max)
     return table.concat(names, ", ")
 end
 
--- the item (or enchant) a recipe or work order makes
 function UI.ItemTooltip(owner, r)
     GameTooltip:SetOwner(owner, "ANCHOR_RIGHT")
     if r.itemID then
@@ -310,14 +283,12 @@ function UI.ItemTooltip(owner, r)
     GameTooltip:Show()
 end
 
--- roster label: "Alt Name (Main Name)" for alts that have announced a main
 function UI.DisplayName(m)
     local text = UI.ColoredName(m)
     if m.main then text = text .. " |cff9d9d9d(" .. m.main .. ")|r" end
     return text
 end
 
--- m is a member record; whispers go to the exact name the game gave us for them
 function UI.Whisper(m, text)
     local name = m and (m.whisperTarget or m.name)
     if not name then return end
@@ -325,8 +296,6 @@ function UI.Whisper(m, text)
     ChatFrame_SendTell(name)
     if not text then return end
 
-    -- SendTell types "/w Name " into the chat box, and the box only switches to
-    -- whisper mode a frame later; anything inserted before that is wiped. Wait for it.
     local tries = 0
     local function TryInsert()
         tries = tries + 1
@@ -347,7 +316,6 @@ function UI.Whisper(m, text)
     KR:After(0, TryInsert)
 end
 
--- ask the client to load an item so its link is ready by the time we need it
 function UI.PrimeItem(itemID)
     if not itemID then return end
     if C_Item and C_Item.RequestLoadItemDataByID then
@@ -357,7 +325,6 @@ function UI.PrimeItem(itemID)
     end
 end
 
--- "30x Arcanite Bar" for each reagent of a recipe, for qty crafts
 function UI.ReagentLines(r, qty)
     local lines = {}
     for _, rg in ipairs(r.reagents or {}) do
@@ -368,8 +335,6 @@ function UI.ReagentLines(r, qty)
     return lines
 end
 
--- call back with a chat link for a recipe; items the client hasn't seen yet are loaded
--- first (up to a second), then it falls back to nil and callers use the plain name
 function UI.GetRecipeLink(r, callback)
     local link = KR.Recipes.Link(r)
     if link or not r.itemID then
@@ -390,7 +355,6 @@ function UI.GetRecipeLink(r, callback)
     KR:After(0.1, Poll)
 end
 
--- whisper a crafter, linking the recipe when there is one
 function UI.WhisperRecipe(m, r)
     if not r then
         UI.Whisper(m)
@@ -401,14 +365,12 @@ function UI.WhisperRecipe(m, r)
     end)
 end
 
--- insert a link into the open chat box (shift-click behaviour)
 function UI.InsertLink(link)
     if not link then return false end
     if ChatEdit_InsertLink then return ChatEdit_InsertLink(link) end
     return false
 end
 
--- standard member tooltip, used by the roster and the inspector
 function UI.MemberTooltip(owner, m)
     GameTooltip:SetOwner(owner, "ANCHOR_RIGHT")
     GameTooltip:AddLine(UI.ColoredName(m))

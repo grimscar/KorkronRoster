@@ -1,7 +1,3 @@
--- Kor'kron Roster: a Kor'kron tab on the side of the game's own guild window (J), so the roster is
--- one click away from where people already look. The guild may be shown in the Guild & Communities
--- window or in the Social window's Guild tab, so the tab goes on whichever of them exists. Both may
--- only load the first time they're opened, hence the ADDON_LOADED check.
 local _, KR = ...
 
 local UI = KR.UI
@@ -10,8 +6,6 @@ local WINDOWS = { "CommunitiesFrame", "GuildFrame" }
 local added = {}
 
 local function AddTab(name, parent)
-    -- the spellbook's side-tab look, low on the window's right edge (the Communities window keeps
-    -- its own side tabs at the top)
     local tab = CreateFrame("Button", "KorkronRoster" .. name .. "Tab", parent)
     tab:SetSize(32, 32)
     tab:SetPoint("BOTTOMLEFT", parent, "BOTTOMRIGHT", 0, 40)

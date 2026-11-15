@@ -1,4 +1,3 @@
--- Kor'kron Roster: static lookup tables.
 local _, KR = ...
 
 KR.QUESTION_ICON = "Interface\\Icons\\INV_Misc_QuestionMark"
@@ -16,7 +15,6 @@ KR.CLASS_ICON_TCOORDS = CLASS_ICON_TCOORDS or {
     ["PALADIN"] = { 0, 0.25, 0.5, 0.75 },
 }
 
--- profession slots stored on every member record, in display order
 KR.PROF_SLOTS = { "prof1", "prof2", "fish", "cook", "fa" }
 
 KR.PROF_ICONS = {
@@ -43,14 +41,12 @@ KR.PRIMARY_PROFS = {
     ["Jewelcrafting"] = true, ["Inscription"] = true,
 }
 
--- secondary profession -> member slot
 KR.SECONDARY_SLOT = {
     ["Fishing"] = "fish",
     ["Cooking"] = "cook",
     ["First Aid"] = "fa",
 }
 
--- spells that carry each profession's localized name; lets non-English clients map names back
 local PROF_SPELLS = {
     ["Alchemy"] = 2259, ["Blacksmithing"] = 2018, ["Enchanting"] = 7411,
     ["Engineering"] = 4036, ["Leatherworking"] = 2108, ["Tailoring"] = 3908,
@@ -68,7 +64,6 @@ function KR.GetSpellName(spellID)
 end
 
 local localizedToEnglish
--- English profession name for a (possibly localized) one; unknown names pass through
 function KR.CanonicalProf(name)
     if not name then return nil end
     if not localizedToEnglish then
@@ -98,7 +93,6 @@ KR.PVP_RANK_NAMES = {
     },
 }
 
--- The guild's lowest officer rank, by its in-game name: it and every rank above it are officers.
 KR.LOWEST_OFFICER_RANK = "Hearth-Caller"
 
 KR.WEEKDAYS ={ "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday" }

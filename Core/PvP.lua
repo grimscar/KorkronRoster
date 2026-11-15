@@ -1,10 +1,8 @@
--- Kor'kron Roster: honor and PvP rank tracking with daily and weekly baselines.
 local _, KR = ...
 
 local PvP = {}
 KR.PvP = PvP
 
--- days since 1970-01-01 for a calendar date (plain arithmetic: no time zone involved)
 local function DayNumber(y, m, d)
     if m <= 2 then y = y - 1 end
     local era = math.floor(y / 400)
@@ -14,9 +12,6 @@ local function DayNumber(y, m, d)
 end
 PvP.DayNumber = DayNumber
 
--- today's date on the realm's clock: the same for every guildmate, whatever time zone their PC
--- is in (each PC's own clock made "today" differ between guildmates, so their HKs showed as 0
--- to each other for part of the day). Falls back to the PC's clock without the realm calendar.
 local function Today()
     local realm = C_DateAndTime and C_DateAndTime.GetCurrentCalendarTime and C_DateAndTime.GetCurrentCalendarTime()
     if realm and realm.year and realm.month and realm.monthDay then
@@ -26,13 +21,11 @@ local function Today()
     return d.year, d.month, d.day
 end
 
--- date keys for today and the start of the current PvP week ("YYYY-MM-DD")
 function PvP.GetKeys()
     local resetDay = (KR.db and KR.db.settings.resetDay) or 3
     local today = DayNumber(Today())
-    local wday = (today + 4) % 7 + 1 -- 1 = Sunday (1970-01-01 was a Thursday)
+    local wday = (today + 4) % 7 + 1
     local weekStart = today - (wday - resetDay) % 7
-    -- noon UTC of that day, formatted in UTC, so nothing can shift the date
     return date("!%Y-%m-%d", today * 86400 + 43200), date("!%Y-%m-%d", weekStart * 86400 + 43200)
 end
 
@@ -40,7 +33,6 @@ local function Num(v)
     return tonumber(v) or 0
 end
 
--- returns true if any shared stat changed
 function PvP:Scan()
     if not KR.db then return false end
     local p = KR.DB:GetProfile()
@@ -66,7 +58,6 @@ function PvP:Scan()
         track.weekStartHK = lifetime
     end
 
-    -- the server's "this week" numbers exclude today, so today's session is added on top
     local sessionHK, sessionHonor, weekHK, weekHonor = 0, 0, 0, 0
     if GetPVPSessionStats then
         local a, b = GetPVPSessionStats()
@@ -84,7 +75,6 @@ function PvP:Scan()
     pvp.weekHonor = track.weekHonor
     pvp.dayKey, pvp.weekKey = dayKey, weekKey
 
-    -- current rank; fall back to the highest rank held if the client reports none
     local rankNum = 0
     if GetPVPRankInfo then
         local rankID = UnitPVPRank and UnitPVPRank("player") or 0
@@ -99,7 +89,6 @@ function PvP:Scan()
     return before ~= table.concat({ pvp.rankNum, pvp.todayHK, pvp.weekHK, pvp.weekHonor, pvp.lifetimeHK }, ":")
 end
 
--- manual corrections from /kr settoday and /kr setweek
 function PvP:SetToday(count)
     local p = KR.DB:GetProfile()
     self:Scan()
@@ -119,9 +108,6 @@ function PvP:SetWeek(count)
     return p.pvp.weekHK
 end
 
--- a member's stats with stale daily/weekly numbers zeroed (they last synced before a reset).
--- dayKey, weekKey (optional): PvP.GetKeys(), when the caller already has them (a whole roster
--- needs them once, not once per member and number)
 function PvP.Current(pvp, dayKey, weekKey)
     if not dayKey then dayKey, weekKey = PvP.GetKeys() end
     local today = (pvp.dayKey == nil or pvp.dayKey == dayKey) and Num(pvp.todayHK) or 0

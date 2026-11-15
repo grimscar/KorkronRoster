@@ -1,11 +1,10 @@
--- Kor'kron Roster: the main roster window (Roster, Professions, PvP, Recipes and Work Orders tabs).
 local _, KR = ...
 
 local UI, Style = KR.UI, KR.Style
 local Main = {}
 UI.Main = Main
 
-local TOP = Style.TOP -- the tab row
+local TOP = Style.TOP
 local ROW_HEIGHT = 20
 local MAX_COLUMNS = 8
 local FRAME_WIDTH = 980
@@ -16,11 +15,7 @@ local frame, list
 local headerButtons, tabButtons = {}, {}
 local searchText = ""
 
--- looked up once per redraw (Main:Refresh), not for every member, recipe and number shown: the
--- guild table (each lookup asks the game for the guild name) and the PvP day and week
 local guild, pvpDay, pvpWeek
-
--- shared columns ----------------------------------------------------------------------
 
 local function Lower(s)
     return string.lower(s or "")
@@ -61,8 +56,6 @@ local NAME_COLUMN = {
         end
     end,
 }
-
--- professions tab --------------------------------------------------------------------
 
 local function HasRecipes(m, prof)
     local data = m.recipes and m.recipes[prof.name]
@@ -106,8 +99,6 @@ local function ProfColumn(slot, title, width, compact)
     }
 end
 
--- pvp tab ------------------------------------------------------------------------------
-
 local function PvPTooltip(cell, m)
     local p = KR.PvP.Current(m.pvp)
     GameTooltip:SetOwner(cell, "ANCHOR_RIGHT")
@@ -121,7 +112,6 @@ local function PvPTooltip(cell, m)
     GameTooltip:Show()
 end
 
--- a member's PvP numbers for the day and week this redraw shows
 local function PvPNow(m)
     return KR.PvP.Current(m.pvp, pvpDay, pvpWeek)
 end
@@ -153,8 +143,6 @@ local RANK_COLUMN = {
     end,
     tooltip = PvPTooltip,
 }
-
--- recipes tab --------------------------------------------------------------------------
 
 local CraftersSorted = UI.CraftersSorted
 
@@ -216,8 +204,6 @@ local RECIPE_COLUMNS = {
         end,
     },
 }
-
--- work orders and completed tabs --------------------------------------------------------------
 
 local MATS_TEXT = { requester = "|cff40ff40Requester|r", crafter = "|cffff9933Crafter|r" }
 
@@ -346,8 +332,6 @@ local function OrderTiebreak(a, b)
     return a.id < b.id
 end
 
--- tab definitions ----------------------------------------------------------------------
-
 local function MemberMatches(m)
     if searchText == "" then return true end
     if string.find(Lower(m.name), searchText, 1, true) then return true end
@@ -371,10 +355,6 @@ local function MemberTiebreak(a, b)
     if a.online ~= b.online then return a.online and true or false end
     return Lower(a.name) < Lower(b.name)
 end
-
--- roster tab ---------------------------------------------------------------------------------
--- With "Mains only" on, each row is a player: the main (or a lone character) stands in for
--- all of their characters, and playerOf holds the group so columns can use it.
 
 local playerOf = {}
 
@@ -454,7 +434,7 @@ local LOCATION_COLUMN = {
     id = "zone", title = "Location", width = 160, asc = true,
     sortValue = function(m)
         local on = OnlineChar(m)
-        return on and Lower(on.zone) or "~" -- offline sorts after every zone
+        return on and Lower(on.zone) or "~"
     end,
     render = function(cell, m)
         local on = OnlineChar(m)
@@ -612,8 +592,6 @@ local function FindColumn(tab, id)
     end
 end
 
--- rows ------------------------------------------------------------------------------------
-
 local function CellOnEnter(cell)
     cell:GetParent().highlight:Show()
     if cell.col and cell.col.tooltip and cell.item then KR.Safe(cell.col.tooltip, cell, cell.item) end
@@ -670,8 +648,6 @@ local function UpdateRow(row, item)
         col.render(cell, item)
     end
 end
-
--- window ------------------------------------------------------------------------------------
 
 local function UpdateHeaders()
     local tab = CurrentTab()
@@ -731,8 +707,6 @@ function Main:Refresh()
     local sort = SortState(tab)
     local col = FindColumn(tab, sort.key) or tab.columns[1]
     local get, asc, tiebreak = col.sortValue, sort.asc, tab.tiebreak
-    -- each row's sort value once: comparing called it twice per comparison, thousands of times
-    -- in a big guild (the PvP numbers and crafter lists aren't free to work out)
     local value = {}
     for i = 1, #items do value[items[i]] = get(items[i]) end
     table.sort(items, function(a, b)
@@ -783,7 +757,6 @@ local function Build()
     UI.MakePopup(frame)
     Style.Window(frame, "")
 
-    -- tab buttons
     local prev
     for _, tab in ipairs(TABS) do
         local btn = UI.Button(frame, TAB_WIDTH)
@@ -799,7 +772,6 @@ local function Build()
         prev = btn
     end
 
-    -- search
     local search = UI.EditBox(frame, 170, "KorkronRosterSearchBox")
     search:SetPoint("LEFT", prev, "RIGHT", 12, 0)
     search.placeholder = search:CreateFontString(nil, "OVERLAY", "KorkronRosterFontDisableSmall")
@@ -816,7 +788,6 @@ local function Build()
     search:SetScript("OnEscapePressed", function(self) self:SetText("") self:ClearFocus() end)
     search:SetScript("OnEnterPressed", function(self) self:ClearFocus() end)
 
-    -- offline toggle
     local offline = UI.CheckButton(frame)
     offline:SetPoint("LEFT", search, "RIGHT", 12, 0)
     offline.label = offline:CreateFontString(nil, "OVERLAY", "KorkronRosterFontNormalSmall")
@@ -828,7 +799,6 @@ local function Build()
     end)
     frame.offlineCheck = offline
 
-    -- sync
     local sync = UI.Button(frame, 90)
     sync:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -12, TOP)
     sync:SetText("Sync Guild")
@@ -849,7 +819,6 @@ local function Build()
     end)
     sync:SetScript("OnLeave", function() GameTooltip:Hide() end)
 
-    -- column headers
     for i = 1, MAX_COLUMNS do
         local hdr = CreateFrame("Button", nil, frame)
         hdr:SetHeight(20)
@@ -893,7 +862,6 @@ local function Build()
     version:SetPoint("RIGHT", frame, "TOPRIGHT", -34, -Style.BAND / 2)
     version:SetText("v" .. KR.version)
 
-    -- roster tab tools, bottom right
     local inactivity = UI.Button(frame, 100)
     inactivity:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -24, 6)
     inactivity:SetText("Inactivity")
@@ -907,7 +875,6 @@ local function Build()
     inactivity:SetScript("OnLeave", function() GameTooltip:Hide() end)
     frame.inactivity = inactivity
 
-    -- work orders tab tool, same corner
     local newOrder = UI.Button(frame, 140)
     Style.SetButtonKind(newOrder, true)
     newOrder:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -24, 6)
@@ -941,7 +908,6 @@ local function Build()
     mains:SetScript("OnLeave", function() GameTooltip:Hide() end)
     frame.mainsOnly = mains
 
-    -- officers only; left of Mains only so that row doesn't move for everyone else
     local guildLog = UI.Button(frame, 90)
     guildLog:SetPoint("RIGHT", mains, "LEFT", -8, 0)
     guildLog:SetText("Guild Log")

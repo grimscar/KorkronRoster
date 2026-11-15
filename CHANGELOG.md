@@ -1,5 +1,8 @@
 # Changelog
 
+## 2.9.1
+- **The guild's crest**, the Kor'kron Guard's tabard emblem on crimson, now sits in the title band of every window, the same in all the Kor'kron mods. After updating, restart the game once (not just `/reload`) so the new art loads.
+
 ## 2.9.0
 - **A new look, shared by all the Kor'kron mods:** iron frames with a blood-red title band, new lettering, darker buttons with the open tab and the main action in red, slim scroll bars, check boxes and menus, and a round minimap button. The options page in the game's Settings and the tab on the game's guild window keep the game's look. After updating, restart the game once (not just `/reload`) so the new art and lettering load.
 

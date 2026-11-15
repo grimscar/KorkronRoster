@@ -1,12 +1,3 @@
--- Kor'kron Roster: saved variables, schema migration and record accessors.
---
--- KorkronRosterDB layout (schema 2):
---   settings            user options
---   chars[Name-Realm]   your own characters (source of truth for what you broadcast)
---   guilds[Guild-Realm] .members[Name] = member record, one table per guild
---                       .orders[id] = work order (see WorkOrders.lua)
---   guildLogs[Guild-Realm] saved guild log (see GuildLog.lua). Outside guilds[]: "Clear guild data"
---                       must not erase it, because the game can't give old events back
 local _, KR = ...
 
 local DB = {}
@@ -19,7 +10,7 @@ local DEFAULT_SETTINGS = {
     showOffline = true,
     tooltips = true,
     autoSync = true,
-    resetDay = 3, -- weekday the PvP week starts (1 = Sunday ... 7 = Saturday)
+    resetDay = 3,
     minimap = { hide = false, angle = 200 },
     tab = "ROSTER",
     mainsOnly = false,
@@ -45,11 +36,10 @@ function DB.NewPvP()
     return { rankNum = 0, todayHK = 0, weekHK = 0, weekHonor = 0, lifetimeHK = 0 }
 end
 
--- make sure every field the UI and sync code touch exists
 local function Sanitize(rec)
     for _, slot in ipairs(KR.PROF_SLOTS) do
         if type(rec[slot]) ~= "table" then rec[slot] = NewProfSlot() end
-        rec[slot].recipes = nil -- 1.0 kept recipes on the slot; they now live in rec.recipes
+        rec[slot].recipes = nil
     end
     for slot, name in pairs({ fish = "Fishing", cook = "Cooking", fa = "First Aid" }) do
         if not rec[slot].name or rec[slot].name == "-" then rec[slot].name = name end
@@ -64,7 +54,6 @@ local function NewMember(name)
     return Sanitize({ name = name, online = false })
 end
 
--- 1.0 stored a flat db.members keyed "FirstName_CLASS"; park it until we know the guild
 local function MigrateV1(db)
     if type(db.members) == "table" and next(db.members) then
         db.legacyMembers = db.members
@@ -75,9 +64,6 @@ local function MigrateV1(db)
     db.debug = nil
 end
 
--- 2.0.0 keyed members by whatever name the API returned, so Forever's two-part names
--- could appear as "First", "First Last" and "First-Last". Normalise every key and drop
--- first-name-only records that have a full-name twin.
 local function MigrateV2(db)
     for _, g in pairs(db.guilds or {}) do
         local members = {}
@@ -99,8 +85,6 @@ local function MigrateV2(db)
     end
 end
 
--- Before 2.7.0 the addon kept its own titles on top of the guild's ranks; the ranks have those
--- names in the game now.
 local function MigrateV3(db)
     for _, g in pairs(db.guilds or {}) do
         for _, m in pairs(g.members or {}) do
@@ -120,12 +104,10 @@ function DB:Init()
     ApplyDefaults(db.settings, DEFAULT_SETTINGS)
     db.chars = db.chars or {}
     db.guilds = db.guilds or {}
-    db.mains = db.mains or {} -- [guildKey] = full name of the account's main in that guild
+    db.mains = db.mains or {}
     db.guildLogs = db.guildLogs or {}
     KR.db = db
 end
-
--- own character -------------------------------------------------------------
 
 function DB:GetCharKey()
     return (UnitName("player") or "?") .. "-" .. (GetRealmName() or "")
@@ -146,8 +128,6 @@ function DB:GetProfile()
     return p
 end
 
--- guild ----------------------------------------------------------------------
-
 function DB:GetGuildKey()
     if not IsInGuild() then return nil end
     local gName, _, _, gRealm = GetGuildInfo("player")
@@ -166,8 +146,6 @@ function DB:GetGuild()
     return g, key
 end
 
--- g (optional): the guild table from GetGuild(), for callers looking up many members at once
--- (each GetGuild() asks the game for the guild name again)
 function DB:GetMember(name, create, g)
     if not name then return nil end
     g = g or self:GetGuild()
@@ -207,12 +185,10 @@ function DB:WipeGuild()
     if key then KR.db.guilds[key] = nil end
 end
 
--- point your own guild entry at your character profile so the UI shows live data
 function DB:SyncSelf()
     local myName = KR.PlayerName()
     local me = self:GetMember(myName, true)
     if not me then return end
-    -- before we knew our full name we may have filed ourselves under the first name
     local firstName = UnitName("player")
     if firstName ~= myName and KR.HasFullPlayerName() then
         local g = self:GetGuild()
@@ -239,12 +215,6 @@ function DB:SyncSelf()
     me.lastSync = time()
 end
 
--- mains and alts ----------------------------------------------------------------------
--- One main per guild for the whole account (SavedVariables are account-wide). Each of
--- your characters announces it in its profile; guildmates only ever take a character's
--- main from that character itself, so nobody can claim someone else as their alt.
-
--- the main this character should announce, or nil if it is the main / none is set
 function DB:GetMain()
     local _, key = self:GetGuild()
     local main = key and KR.db.mains[key]
@@ -261,14 +231,12 @@ function DB:SetMain(name)
     local _, key = self:GetGuild()
     if not key then return end
     KR.db.mains[key] = name
-    -- our other characters only announce it when they next log in; mark them locally now
     for _, p in ipairs(self:GetMyCharacters()) do
         local m = self:GetMember(p.fullName)
         if m then m.main = (name and name ~= p.fullName) and name or nil end
     end
 end
 
--- your characters (from this account) last seen in the current guild, sorted by name
 function DB:GetMyCharacters()
     local _, key = self:GetGuild()
     local out = {}
@@ -296,7 +264,6 @@ function DB:GetAlts(mainName)
     return alts
 end
 
--- copy 1.0 data into the current guild (and your own profile) once
 function DB:ImportLegacy()
     local legacy = KR.db.legacyMembers
     if not legacy or not self:GetGuild() then return end

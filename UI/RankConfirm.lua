@@ -1,9 +1,3 @@
--- Kor'kron Roster: confirm box for in-game rank changes.
---
--- GuildPromote/GuildDemote are protected: an addon calling them gets blocked (and the game
--- offers to disable it). A secure action button running "/gpromote Name" as a macro is
--- allowed, because the officer's own click runs it. Secure attributes can't change in
--- combat, so the box refuses to open then.
 local _, KR = ...
 
 local UI = KR.UI
@@ -11,7 +5,7 @@ local RankConfirm = {}
 UI.RankConfirm = RankConfirm
 
 local frame, confirm
-local pending -- { m, plan }
+local pending
 
 local function Build()
     frame = CreateFrame("Frame", "KorkronRankConfirm", UIParent)
@@ -40,7 +34,6 @@ local function Build()
     KR.Style.SetButtonKind(confirm, true)
     confirm:SetPoint("BOTTOMRIGHT", frame, "BOTTOM", -6, 14)
     confirm:SetText("Confirm")
-    -- fire on exactly one of down/up: whichever the client's secure buttons act on
     local onDown = GetCVarBool and GetCVarBool("ActionButtonUseKeyDown")
     confirm:RegisterForClicks(onDown and "AnyDown" or "AnyUp")
     confirm:SetAttribute("type", "macro")
@@ -79,7 +72,6 @@ function RankConfirm:Open(m, plan)
     frame:Raise()
 end
 
--- secure frames can't be hidden by addon code once combat starts, so close it just before
 KR:RegisterEvent("PLAYER_REGEN_DISABLED", function()
     if frame and frame:IsShown() then frame:Hide() end
 end)

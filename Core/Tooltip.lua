@@ -1,4 +1,3 @@
--- Kor'kron Roster: "Guild crafters" lines on item tooltips.
 local _, KR = ...
 
 local Tooltip = {}

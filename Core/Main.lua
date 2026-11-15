@@ -1,4 +1,3 @@
--- Kor'kron Roster: startup and game event wiring. Loaded last.
 local ADDON_NAME, KR = ...
 
 local Prof, PvP, Roster, Sync = KR.Professions, KR.PvP, KR.Roster, KR.Sync
@@ -23,7 +22,6 @@ end
 
 local function OnTradeWindow(kind)
     return function()
-        -- our own header expand/collapse fires update events; ignore those
         if GetTime() - Prof.lastWindowScan < 1.5 then return end
         KR:Debounce("tradeScan", 0.5, function()
             if Prof:ScanOpenWindow(kind) then
@@ -59,7 +57,6 @@ local function RegisterGameEvents()
         KR:RegisterEvent(event, OnPvPChanged)
     end
 
-    -- item names arrive asynchronously; redraw so "Item #1234" becomes a real name
     KR:RegisterEvent("GET_ITEM_INFO_RECEIVED", function()
         KR:Throttle("itemInfo", 1, function() KR:Fire("DATA_UPDATED") end)
     end)
@@ -74,15 +71,12 @@ local function OnFirstWorldEntry()
         KR.GuildLog.Request()
         KR:Fire("DATA_UPDATED")
     end)
-    -- give the roster and chat channels a moment, then sync with a bit of jitter
     KR:After(8 + math.random() * 7, function()
         if KR.db.settings.autoSync then Sync:RequestAll() end
     end)
-    -- once the login chat has settled
     KR:After(20, function() Sync:RemindNewerVersion() end)
 
     if C_Timer and C_Timer.NewTicker then
-        -- through Safe like every other timer: an error is kept for /kr errors, not lost
         local function Tick()
             Roster:Request()
             Sync:ScheduleBroadcast()

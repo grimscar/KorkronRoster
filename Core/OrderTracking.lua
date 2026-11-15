@@ -1,20 +1,7 @@
--- Kor'kron Roster: notices trades and mail that hand over a work order's materials or items and moves
--- the order on by itself. When the requester provides the materials, the requester's side marks them
--- sent and the crafter's side marks them received. Then the crafter's side marks the order sent and
--- the requester's side confirms it.
---   Trade: what each side has put in the trade window is noted as it changes (an enchant shows on the
---          item in the "Will not be traded" slot); it counts once the game says the trade is complete.
---   Mail:  attachments count once the game says the mail went out. Mail from the other side counts as
---          soon as it shows in your mailbox, except cash on delivery.
--- Materials add up over several trades and letters sent (o.handed). The mailbox can't: it may show
--- letters already seen, so what's in it counts on top of what was traded but only while it's there.
--- The items have to come in one trade or mail (or the mailbox, for each sender). Anything less is
--- left to the order card's buttons.
 local _, KR = ...
 
-local TRADE_SLOTS, ENCHANT_SLOT = 6, 7 -- the trade window's item slots, and its "Will not be traded" slot
+local TRADE_SLOTS, ENCHANT_SLOT = 6, 7
 
--- what changed hands: counts[itemID] = how many, and the enchant put on an item, if any
 local function Handover()
     return { counts = {} }
 end
@@ -31,7 +18,6 @@ local function Describe(h)
     return #parts > 0 and table.concat(parts, ", ") or "nothing"
 end
 
--- is a name the game gave us (perhaps only "First") this guildmate ("First Last")?
 local function SamePerson(seen, name)
     seen = KR.NameKey(seen)
     if not seen or not name then return false end
@@ -39,7 +25,6 @@ local function SamePerson(seen, name)
     return seen == KR.FirstName(name)
 end
 
--- does the handover hold this order's items? Those it does are used up, so each counts for one order.
 local function Take(o, h)
     if not o.itemID then
         if h.enchant ~= o.name then return false end
@@ -52,7 +37,6 @@ local function Take(o, h)
     return true
 end
 
--- the order's materials, [itemID] = how many, or nil when they aren't all known by item
 local function Needed(o)
     local e = KR.Recipes.Find(o.prof, o.name)
     local reagents = e and e.recipe.reagents
@@ -65,9 +49,6 @@ local function Needed(o)
     return need
 end
 
--- adds the order's materials in the handover to what was handed over before under this claim (those
--- in the handover are used up, so each counts for one order); true once they're all there.
--- inbox: the handover is the mailbox, which only counts while it's there
 local function TakeMats(o, h, inbox)
     local need = Needed(o)
     if not need then return false end
@@ -89,7 +70,6 @@ end
 
 local VERB = { t = "traded", m = "mailed" }
 
--- the requester handing over the materials, and the crafter getting them
 local function SettleMats(o, partner, given, got, how, inbox)
     if o.status ~= "claimed" or o.mats ~= "requester" then return end
     local steps = KR.WorkOrders.MatsSteps(o)
@@ -100,7 +80,6 @@ local function SettleMats(o, partner, given, got, how, inbox)
     end
 end
 
--- the crafter handing over the items, and the requester getting them
 local function SettleItems(o, partner, given, got, how)
     if o.status == "claimed" and KR.IsMe(o.claimer) and SamePerson(partner, o.requester) and Take(o, given) then
         KR.WorkOrders.Do(o, "send", "You " .. VERB[how] .. " %s to " .. o.requester .. ", so the work order is marked sent.", how)
@@ -110,9 +89,6 @@ local function SettleItems(o, partner, given, got, how)
     end
 end
 
--- partner: who we traded or mailed with; given/got: what went to them and what came from them;
--- how: "t" (trade) or "m" (mail); inbox: got is the mailbox. Oldest orders first, and materials
--- before items: one trade can bring an enchanter the materials and the item to enchant.
 local function Settle(partner, given, got, how, inbox)
     local orders = KR.WorkOrders.List(false)
     table.sort(orders, function(a, b) return a.created < b.created end)
@@ -122,9 +98,7 @@ local function Settle(partner, given, got, how, inbox)
     end
 end
 
--- trade ----------------------------------------------------------------------------------------------
-
-local trade -- the trade in the window: partner, and what each side has put in so far
+local trade
 
 local function NoteTrade()
     if not trade then return end
@@ -133,7 +107,6 @@ local function NoteTrade()
         Add(given, GetTradePlayerItemLink(i), select(3, GetTradePlayerItemInfo(i)))
         Add(got, GetTradeTargetItemLink(i), select(3, GetTradeTargetItemInfo(i)))
     end
-    -- an enchanter enchants the item the other side puts in its "Will not be traded" slot
     given.enchant = select(6, GetTradeTargetItemInfo(ENCHANT_SLOT))
     got.enchant = select(6, GetTradePlayerItemInfo(ENCHANT_SLOT))
     trade.given, trade.got = given, got
@@ -147,7 +120,6 @@ for _, event in ipairs({ "TRADE_PLAYER_ITEM_CHANGED", "TRADE_TARGET_ITEM_CHANGED
     KR:RegisterEvent(event, NoteTrade)
 end
 
--- the window empties as the trade goes through, so what was noted last is what changed hands
 KR:RegisterEvent("UI_INFO_MESSAGE", function(a, b)
     if (a ~= ERR_TRADE_COMPLETE and b ~= ERR_TRADE_COMPLETE) or not trade then return end
     local done = trade
@@ -156,9 +128,7 @@ KR:RegisterEvent("UI_INFO_MESSAGE", function(a, b)
     Settle(done.partner, done.given, done.got, "t")
 end)
 
--- mail -------------------------------------------------------------------------------------------------
-
-local outgoing -- the mail being sent: recipient and attachments, until the game says it went
+local outgoing
 
 local function NoteOutgoing(recipient)
     local h = Handover()

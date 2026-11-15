@@ -1,7 +1,6 @@
--- Kor'kron Roster: namespace, utilities, event dispatch and timers.
 local ADDON_NAME, KR = ...
 
-KorkronRoster = KR -- global handle for debugging (/dump KorkronRoster.version)
+KorkronRoster = KR
 
 local GetMetadata = (C_AddOns and C_AddOns.GetAddOnMetadata) or GetAddOnMetadata
 
@@ -21,7 +20,6 @@ local function Format(fmt, ...)
     return string.format(fmt, unpack(args, 1, n))
 end
 
--- all format arguments are tostring()'d, so only use %s in messages
 function KR:Print(fmt, ...)
     DEFAULT_CHAT_FRAME:AddMessage(CHAT_TAG .. Format(fmt, ...))
 end
@@ -31,25 +29,15 @@ function KR:Debug(fmt, ...)
     DEFAULT_CHAT_FRAME:AddMessage("|cff888888[KR debug]|r " .. Format(fmt, ...))
 end
 
--- hidden values and errors --------------------------------------------------
--- Forever's client can hide values from addons inside instances ("secret values": chat text,
--- names and more), and any string work on one throws an error. Kor'kron Loot's first raid test
--- died of exactly that. Check game-provided text with Text() before touching it.
-
 function KR.Readable(value)
     return not (issecretvalue and issecretvalue(value))
 end
 
--- the value if it is a string we may read, else nil
 function KR.Text(value)
     if type(value) == "string" and KR.Readable(value) then return value end
     return nil
 end
 
--- WoW hides addon errors by default, so a failure would silently stop a feature (and, without
--- this, also stop every other handler of the same event). Everything event-, timer- and
--- message-driven runs through Safe: errors are kept for /kr errors, and the first one is
--- mentioned in chat (again after /kr errors clear).
 KR.errors = {}
 
 local function RecordError(err)
@@ -68,7 +56,6 @@ local function RecordError(err)
     end
 end
 
--- the error text plus where it happened (for /kr errors)
 local function Traceback(e)
     local stack = debugstack and debugstack(2, 4, 0)
     return tostring(e) .. (stack and ("\n" .. stack) or "")
@@ -78,7 +65,6 @@ function KR.Safe(fn, ...)
     local n = select("#", ...)
     local ok, result
     if n == 0 then
-        -- timers and most events: no arguments to carry, so no extra table or function
         ok, result = xpcall(fn, Traceback)
     else
         local args = { ... }
@@ -91,12 +77,9 @@ function KR.Safe(fn, ...)
     return result
 end
 
--- game events --------------------------------------------------------------
-
 local eventFrame = CreateFrame("Frame")
 local eventHandlers = {}
 
--- returns false if the client does not know the event
 function KR:RegisterEvent(event, handler)
     if not eventHandlers[event] then
         if not pcall(eventFrame.RegisterEvent, eventFrame, event) then return false end
@@ -114,8 +97,6 @@ eventFrame:SetScript("OnEvent", function(_, event, ...)
     end
 end)
 
--- internal message bus (DATA_UPDATED, ...) ---------------------------------
-
 local callbacks = {}
 
 function KR:On(message, fn)
@@ -131,8 +112,6 @@ function KR:Fire(message, ...)
     end
 end
 
--- timers -------------------------------------------------------------------
-
 function KR:After(delay, fn)
     if C_Timer and C_Timer.After then
         C_Timer.After(delay, function() KR.Safe(fn) end)
@@ -141,7 +120,6 @@ function KR:After(delay, fn)
     end
 end
 
--- run fn once things have been quiet for `delay` seconds
 local debounceTokens = {}
 function KR:Debounce(key, delay, fn)
     local token = (debounceTokens[key] or 0) + 1
@@ -151,7 +129,6 @@ function KR:Debounce(key, delay, fn)
     end)
 end
 
--- run fn at most once per `interval` seconds; the latest fn always runs eventually
 local throttleState = {}
 function KR:Throttle(key, interval, fn)
     local st = throttleState[key]
@@ -170,16 +147,6 @@ function KR:Throttle(key, interval, fn)
     end)
 end
 
--- helpers ------------------------------------------------------------------
-
--- names -------------------------------------------------------------------------
--- Forever characters have a first and last name. Depending on the API the pair comes
--- back as "First Last", "First-Last" or with "-Realm" appended, and UnitName("player")
--- only returns "First". Every record is keyed by NameKey(): realm removed, separator
--- normalised to a single space.
-
--- "-Realm", worked out once the game knows the realm (NameKey runs for every roster entry and
--- every addon message)
 local realmSuffix
 
 local function RealmSuffix()
@@ -210,8 +177,6 @@ end
 
 local playerKey
 
--- your own full name; falls back to the first name until the roster or our own
--- addon traffic tells us the rest
 function KR.PlayerName()
     if playerKey then return playerKey end
     local candidates = {}
@@ -248,7 +213,6 @@ function KR.IsMe(name)
     return name ~= nil and name == KR.PlayerName()
 end
 
--- -1 if a < b, 0 if equal, 1 if a > b ("1.2.10" > "1.2.9")
 function KR.CompareVersions(a, b)
     local pa, pb = {}, {}
     for n in string.gmatch(tostring(a or ""), "%d+") do pa[#pa + 1] = tonumber(n) end
@@ -266,10 +230,7 @@ function KR.ClassColorHex(classTag)
     return string.format("%02x%02x%02x", c.r * 255, c.g * 255, c.b * 255)
 end
 
--- The game reports how long ago something was in whole years, months, days and hours.
--- Returns that in seconds, or nil if the game hid it or has no answer.
 function KR.ElapsedSeconds(years, months, days, hours)
-    -- (readable first: even testing a hidden value for nil throws)
     if KR.Readable(years) and KR.Readable(months) and KR.Readable(days) and KR.Readable(hours) and years then
         return (((years * 365) + (months * 30) + days) * 24 + hours) * 3600
     end

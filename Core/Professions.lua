@@ -1,4 +1,3 @@
--- Kor'kron Roster: scanning your own profession levels and recipe lists.
 local _, KR = ...
 
 local Prof = {}
@@ -19,7 +18,6 @@ local function IsPrimary(name)
     return KR.PRIMARY_PROFS[canonical] or canonical ~= "Archaeology"
 end
 
--- keep each primary profession in the slot it already occupies
 local function AssignPrimaries(p, found)
     local slots = { "prof1", "prof2" }
     local used, remaining = {}, {}
@@ -66,7 +64,6 @@ local function ReadProfessionsAPI(primaries, secondaries)
     end
 end
 
--- Classic skill tab; expands collapsed headers and puts them back afterwards
 local function ReadSkillLines(primaries, secondaries)
     if not (GetNumSkillLines and GetSkillLineInfo) then return end
     local collapsed = {}
@@ -100,7 +97,6 @@ local function ReadSkillLines(primaries, secondaries)
     end
 end
 
--- refresh level, class and profession levels; returns true if anything changed
 function Prof:ScanSkills()
     if not KR.db then return false end
     local p = KR.DB:GetProfile()
@@ -115,7 +111,6 @@ function Prof:ScanSkills()
         ReadSkillLines(primaries, secondaries)
     end
 
-    -- an empty read usually means the client has not loaded skills yet; leave data alone
     if #primaries > 0 or next(secondaries) then
         AssignPrimaries(p, primaries)
         for slot in pairs({ fish = true, cook = true, fa = true }) do
@@ -125,7 +120,6 @@ function Prof:ScanSkills()
             p[slot].max = s and s.max or 0
         end
 
-        -- forget recipe lists for professions that were unlearned
         local known = {}
         for _, slot in ipairs(KR.PROF_SLOTS) do
             if (p[slot].rank or 0) > 0 then known[p[slot].name] = true end
@@ -141,8 +135,6 @@ function Prof:ScanSkills()
     return before ~= (SlotSignature(p) .. (p.level or 0))
 end
 
--- trade skill window ---------------------------------------------------------------
-
 local function ItemIDFromLink(link)
     return link and tonumber(string.match(link, "item:(%d+)")) or nil
 end
@@ -151,7 +143,6 @@ local function SpellIDFromLink(link)
     return link and tonumber(string.match(link, "enchant:(%d+)") or string.match(link, "spell:(%d+)")) or nil
 end
 
--- a linked, guild or NPC trade skill window shows someone else's recipes
 local function IsForeignTradeSkill()
     if IsTradeSkillLinked and IsTradeSkillLinked() then return true end
     if IsTradeSkillGuild and IsTradeSkillGuild() then return true end
@@ -164,7 +155,6 @@ local function IsForeignTradeSkill()
     return false
 end
 
--- Classic trade skill API. Headers are expanded for the scan and collapsed again after.
 local function ScanClassicTradeSkill()
     if not (GetTradeSkillLine and GetNumTradeSkills and GetTradeSkillInfo) then return end
     local skillName, rank, maxRank = GetTradeSkillLine()
@@ -209,7 +199,6 @@ local function ScanClassicTradeSkill()
         end
     end
 
-    -- close the headers we opened; walking bottom-up keeps indices above valid
     if next(collapsed) and CollapseTradeSkillSubClass then
         for i = GetNumTradeSkills(), 1, -1 do
             local name, kind = GetTradeSkillInfo(i)
@@ -222,7 +211,6 @@ local function ScanClassicTradeSkill()
     return skillName, rank, maxRank, recipes
 end
 
--- Modern C_TradeSkillUI
 local function ScanModernTradeSkill()
     local api = C_TradeSkillUI
     if not (api and api.GetAllRecipeIDs and api.GetRecipeInfo) then return end
@@ -263,7 +251,6 @@ local function ScanModernTradeSkill()
     return info.professionName, info.skillLevel or 0, info.maxSkillLevel or 0, recipes
 end
 
--- Classic craft window (Enchanting); hunters' Beast Training has no skill line and is skipped
 local function ScanCraft()
     if not (GetCraftDisplaySkillLine and GetNumCrafts and GetCraftInfo) then return end
     local skillName, rank, maxRank = GetCraftDisplaySkillLine()
@@ -321,10 +308,8 @@ local function Record(skillName, rank, maxRank, recipes)
     return changed
 end
 
--- expanding/collapsing headers fires update events; callers ignore those for a moment
 Prof.lastWindowScan = 0
 
--- kind is "CRAFT" for the Classic craft frame, anything else for trade skills
 function Prof:ScanOpenWindow(kind)
     if not KR.db or IsForeignTradeSkill() then return false end
     self.lastWindowScan = GetTime()

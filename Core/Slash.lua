@@ -1,4 +1,3 @@
--- Kor'kron Roster: chat commands.
 local _, KR = ...
 
 local function PrintHelp()
@@ -14,7 +13,6 @@ local function PrintHelp()
     DEFAULT_CHAT_FRAME:AddMessage(c .. "/kr options|r - open the options panel")
     DEFAULT_CHAT_FRAME:AddMessage(c .. "/kr minimap|r - show or hide the minimap button")
     DEFAULT_CHAT_FRAME:AddMessage(c .. "/kr version|r - show who in the guild runs which version")
-    -- dev-only commands (settoday, setweek, debug, remove, purge, errors) work but stay unlisted
 end
 
 local function PrintErrors(arg)
@@ -148,7 +146,6 @@ SLASH_KORKRONROSTER1 = "/korkron"
 SLASH_KORKRONROSTER2 = "/kr"
 SlashCmdList["KORKRONROSTER"] = function(msg) KR.Safe(HandleCommand, msg) end
 
--- 1.0 commands
 SLASH_KRHELP1 = "/krhelp"
 SlashCmdList["KRHELP"] = PrintHelp
 SLASH_KRDEBUGON1 = "/krdebugon"
@@ -156,7 +153,6 @@ SlashCmdList["KRDEBUGON"] = function() SetDebug(true) end
 SLASH_KRDEBUGOFF1 = "/krdebugoff"
 SlashCmdList["KRDEBUGOFF"] = function() SetDebug(false) end
 
--- AddonCompartmentFunc in the .toc
 function KorkronRoster_OnAddonCompartmentClick(_, button)
     if button == "RightButton" then
         KR.UI.Options:Open()

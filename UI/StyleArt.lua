@@ -1,6 +1,3 @@
--- The Kor'kron look: where each piece sits in Media/Art.tga, in pixels { x, y, width, height }.
--- Written by Kor'kron Hub's tools/make_art.py (and copied to the other mods by its tools/copy_style.py):
--- change that and run it again, don't edit this.
 local _, ns = ...
 
 ns.STYLE_ART = {
@@ -13,6 +10,7 @@ ns.STYLE_ART = {
     buttonline_r = { 72, 104, 12, 48 },
     checkbox = { 88, 104, 32, 32 },
     close = { 112, 0, 36, 36 },
+    crest_ring = { 384, 128, 128, 128 },
     diamond = { 150, 0, 12, 12 },
     disc = { 256, 128, 128, 128 },
     glow = { 384, 0, 128, 128 },

@@ -1,16 +1,8 @@
--- Kor'kron Roster: recipe normalization, wire format, hashing and the guild crafter index.
---
--- A recipe is { name, category, spellID, itemID, icon, link, reagents = { { itemID, name, count } } }.
--- icon and link are only kept locally; the wire format carries ids and lets each client resolve them.
---
--- Wire format: records joined by "~". "#Category" starts a category, every other record is
---   name`spellID`itemID`reagents     with reagents = "itemID*count,itemID*count" (or name*count)
 local _, KR = ...
 
 local Recipes = {}
 KR.Recipes = Recipes
 
--- strip characters reserved by the wire format and chat escapes
 local function Clean(s)
     if s == nil then return "" end
     return (string.gsub(tostring(s), "[~`%^%*,#|]", ""))
@@ -65,7 +57,6 @@ local function SortRecipes(a, b)
     return a.name < b.name
 end
 
--- dedupe and sort so equal recipe sets always serialize (and hash) identically
 function Recipes.Normalize(list)
     local seen, out = {}, {}
     for _, r in ipairs(list or {}) do
@@ -130,9 +121,6 @@ function Recipes.Deserialize(str)
     return list
 end
 
--- save a scanned recipe list on a record; with merge, recipes already known are kept
--- (recipes are never unlearned, so a filtered or partial scan must not drop any)
--- returns true if the stored set changed
 function Recipes.Store(rec, profName, rawList, merge)
     rec.recipes = rec.recipes or {}
     local existing = rec.recipes[profName]
@@ -146,7 +134,7 @@ function Recipes.Store(rec, profName, rawList, merge)
     if #list == 0 then return false end
     local hash = Recipes.Hash(Recipes.Serialize(list))
     if existing and existing.hash == hash then
-        existing.list = list -- keep fresher icons/links without counting as a change
+        existing.list = list
         return false
     end
     rec.recipes[profName] = { hash = hash, count = #list, updated = time(), list = list }
@@ -154,7 +142,6 @@ function Recipes.Store(rec, profName, rawList, merge)
     return true
 end
 
--- save a list received from a guildmate; returns false if the payload fails its hash
 function Recipes.StoreSerialized(rec, profName, payload, hash)
     if Recipes.Hash(payload) ~= hash then return false end
     local list = Recipes.Deserialize(payload)
@@ -164,7 +151,6 @@ function Recipes.StoreSerialized(rec, profName, payload, hash)
     return true
 end
 
--- resolve a display icon without needing the item cache
 function Recipes.Icon(r)
     if r.icon and r.icon ~= KR.QUESTION_ICON and r.icon ~= 134400 then return r.icon end
     local icon
@@ -177,7 +163,6 @@ function Recipes.Icon(r)
     return icon or KR.QUESTION_ICON
 end
 
--- name and link for an item id; name is nil until the item is cached
 function Recipes.ItemInfo(itemID)
     if not itemID then return nil end
     local name, link
@@ -199,8 +184,6 @@ function Recipes.Link(r)
         return GetSpellLink(r.spellID)
     end
 end
-
--- crafter index: every recipe known in the guild and who can make it ----------
 
 local index
 
@@ -233,7 +216,6 @@ function Recipes.GetIndex()
     return index
 end
 
--- the index entry for one profession's recipe, or nil when nobody in the guild shares it
 function Recipes.Find(prof, name)
     return Recipes.GetIndex().byKey[prof .. "\001" .. name]
 end

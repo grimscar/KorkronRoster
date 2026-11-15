@@ -1,12 +1,3 @@
--- Kor'kron Roster: guild sync protocol.
---
--- All traffic goes over the GUILD addon channel, fields separated by "^":
---   P^proto^version^class^level^prof1^r^max^prof2^r^max^fishR^max^cookR^max^faR^max^pvpRank^todayHK^weekHK^weekHonor^lifetimeHK^dayKey^weekKey^main
---   Q^proto                         "everyone please send your profile"
---   M^prof^hash^count               "my recipe list for prof has this hash"
---   F^target^prof^hash              "target, please send that recipe list"
---   R^prof^hash^index^total^data    one chunk of a recipe list (see Recipes.lua)
--- Version 1.0 messages (REQ, SYNC) are still understood and answered.
 local _, KR = ...
 
 local Sync = {}
@@ -15,23 +6,21 @@ KR.Sync = Sync
 local Comm, Recipes = KR.Comm, KR.Recipes
 local Clean = Recipes.Clean
 
-local PROFILE_COOLDOWN = 15  -- seconds between full answers to Q
-local REQUEST_COOLDOWN = 30  -- seconds between our own Q broadcasts
-local RECIPE_COOLDOWN = 30   -- seconds before resending the same recipe list
-local BUFFER_TIMEOUT = 120   -- drop half-received recipe lists after this
+local PROFILE_COOLDOWN = 15
+local REQUEST_COOLDOWN = 30
+local RECIPE_COOLDOWN = 30
+local BUFFER_TIMEOUT = 120
 
 local UPDATE_URL = "https://github.com/grimscar/KorkronRoster"
 
 local lastProfileMsg, lastProfileTime = nil, -999
 local lastManifestSig
 local lastRequest = -999
-local toldVersion -- the newer version the player was told about this session
+local toldVersion
 
 local function Num(v)
     return tonumber(v) or 0
 end
-
--- outgoing -----------------------------------------------------------------------
 
 local function BuildProfile()
     local p = KR.DB:GetProfile()
@@ -74,7 +63,6 @@ function Sync:SendManifest()
     lastManifestSig = ManifestSignature(p)
 end
 
--- broadcast our profile; unchanged profiles are skipped unless forced
 function Sync:SendProfile(force)
     if not KR.db or not IsInGuild() then return end
     KR.Professions:ScanSkills()
@@ -91,26 +79,21 @@ function Sync:SendProfile(force)
     end
 end
 
--- coalesce bursts of changes (every honorable kill, every skill-up) into one broadcast
 function Sync:ScheduleBroadcast()
     if not KR.db or not KR.db.settings.autoSync then return end
     KR:Throttle("broadcast", 20, function() Sync:SendProfile(false) end)
 end
 
--- ask the guild for everyone's data; returns false while on cooldown
 function Sync:RequestAll()
     if not IsInGuild() or GetTime() - lastRequest < REQUEST_COOLDOWN then return false end
     lastRequest = GetTime()
     Comm:Send("Q^" .. KR.PROTOCOL, "ALERT")
-    Comm:Send("REQ", "ALERT") -- lets 1.0 users answer too
+    Comm:Send("REQ", "ALERT")
     self:SendProfile(true)
     KR.WorkOrders.Request()
     return true
 end
 
--- recipe transfer ------------------------------------------------------------------
-
--- split on record boundaries; never cut a UTF-8 character or end a chunk on a space
 local function SplitPayload(s, size)
     local chunks, pos, len = {}, 1, #s
     while pos <= len do
@@ -120,7 +103,7 @@ local function SplitPayload(s, size)
         else
             local cut
             for i = stop, pos + math.floor(size / 2), -1 do
-                if string.byte(s, i) == 126 then cut = i break end -- '~'
+                if string.byte(s, i) == 126 then cut = i break end
             end
             if cut then
                 stop = cut
@@ -157,8 +140,6 @@ function Sync:SendRecipes(prof)
     KR:Debug("Sending %s recipes in %s messages.", prof, #chunks)
 end
 
--- someone advertised a list we don't have: ask for it after a short random wait, so
--- that when many of us need it only one request goes out and everyone overhears the reply
 local pendingFetch = {}
 
 local function QueueFetch(name, prof, hash)
@@ -176,11 +157,6 @@ local function QueueFetch(name, prof, hash)
     end)
 end
 
--- new version notice ---------------------------------------------------------------
--- The game can't see WowUp, so a guildmate's profile is how we learn a newer version is out. The
--- newest one seen is remembered (KorkronRosterDB.newestSeen), so the reminder comes back at every
--- login until the player updates, even when nobody running it is online.
-
 local function TellNewer(version)
     if toldVersion == version then return end
     toldVersion = version
@@ -195,7 +171,6 @@ local function SeenVersion(version)
     TellNewer(KR.db.newestSeen)
 end
 
--- at login: remind about a newer version seen before, or forget it once updated
 function Sync:RemindNewerVersion()
     local newest = KR.db.newestSeen
     if newest and KR.CompareVersions(newest, KR.version) > 0 then
@@ -204,8 +179,6 @@ function Sync:RemindNewerVersion()
         KR.db.newestSeen = nil
     end
 end
-
--- incoming -------------------------------------------------------------------------
 
 local function ApplyProfile(m, f)
     m.class = (f[4] ~= "" and f[4]) or m.class
@@ -221,13 +194,11 @@ local function ApplyProfile(m, f)
     pvp.dayKey = (f[23] and f[23] ~= "") and f[23] or nil
     pvp.weekKey = (f[24] and f[24] ~= "") and f[24] or nil
 
-    -- 2.1+: the main character this one belongs to ("" = none / is the main)
     if f[25] ~= nil then
         local main = KR.NameKey(f[25])
         m.main = (main and main ~= m.name) and main or nil
     end
 
-    -- recipe lists for professions they no longer have
     local known = {}
     for _, slot in ipairs(KR.PROF_SLOTS) do
         if m[slot].rank > 0 then known[m[slot].name] = true end
@@ -258,7 +229,6 @@ Comm:RegisterHandler("Q", function(name, msg)
     local m = KR.DB:GetMember(name, true)
     if m then m.protocol = Num(select(2, strsplit("^", msg))) end
     if GetTime() - lastProfileTime < PROFILE_COOLDOWN then return end
-    -- spread replies out so a login doesn't make the whole guild answer in the same frame
     KR:Debounce("answerQuery", 2 + math.random() * 6, function()
         if GetTime() - lastProfileTime >= PROFILE_COOLDOWN then Sync:SendProfile(true) end
     end)
@@ -280,7 +250,6 @@ Comm:RegisterHandler("F", function(name, msg)
     if KR.IsMe(KR.NameKey(target)) then
         KR:Debounce("sendRecipes" .. prof, 3, function() Sync:SendRecipes(prof) end)
     else
-        -- someone else already asked; we'll overhear the answer
         local key = (KR.NameKey(target) or target) .. "\001" .. prof
         if pendingFetch[key] == hash then pendingFetch[key] = nil end
     end
@@ -324,13 +293,11 @@ Comm:RegisterHandler("R", function(name, msg)
     end
 end)
 
--- version 1.0 compatibility ----------------------------------------------------------
-
 local lastLegacyReply = -999
 
 Comm:RegisterHandler("REQ", function(name)
     local m = KR.DB:GetMember(name)
-    if m and Num(m.protocol) >= 2 then return end -- a current client; it also sent Q
+    if m and Num(m.protocol) >= 2 then return end
     if GetTime() - lastLegacyReply < 60 then return end
     lastLegacyReply = GetTime()
     KR:After(1 + math.random() * 4, function()
@@ -351,7 +318,7 @@ end)
 Comm:RegisterHandler("SYNC", function(name, msg)
     local f = { strsplit("^", msg) }
     if #f < 15 then return end
-    local m = KR.DB:GetMember(name, true) -- trust the sender, not the name inside the message
+    local m = KR.DB:GetMember(name, true)
     if not m or Num(m.protocol) >= 2 then return end
     m.class = f[3] ~= "" and f[3] or m.class
     m.prof1.name, m.prof1.rank, m.prof1.max = f[4] ~= "" and f[4] or "-", Num(f[5]), Num(f[6])

@@ -1,6 +1,3 @@
--- Kor'kron Roster: the work order card (click an order on the Work Orders or Completed tab). The whole
--- order, who provides the materials, how many are needed and where they are, the order's history,
--- buttons for what you may do with it, and ready-made whispers between the requester and the crafter.
 local _, KR = ...
 
 local UI, Style = KR.UI, KR.Style
@@ -8,11 +5,9 @@ local Card = {}
 UI.WorkOrderCard = Card
 
 local WIDTH, MIN_HEIGHT = 380, 448
-local ICON_Y = Style.TOP - 2 -- the item's icon, under the title band
--- the card's height around its texts: above the first (the band and the icon), each section's gap and header,
--- below the last
+local ICON_Y = Style.TOP - 2
 local TOP, SECTION, BOTTOM = 52 - ICON_Y, 34, 104
-local CHAT_MAX = 255 -- longest chat message, in bytes
+local CHAT_MAX = 255
 
 local frame, order
 
@@ -31,7 +26,6 @@ local ACTIONS = {
     { id = "cancel", label = "Cancel Order", width = 96, confirm = "Cancel the work order for %s?" },
 }
 
--- the requester's materials, by hand: one button on the Materials line, for whichever side you are
 local MATS_ACTIONS = {
     { id = "matsSent", label = "Mark Sent",
       confirm = "Mark the materials for %s sent?\n\nTrades and mail to the crafter are noticed by themselves. Use this when they weren't, for example when another of your characters sent them. The order's history shows it was marked by hand." },
@@ -45,16 +39,14 @@ local STEP_TEXT = {
 }
 local HOW_TEXT = { t = " (trade)", m = " (mail)", h = " (by hand)" }
 
--- ready-made whispers for a claimed order, by your side of it and then by who provides the materials
--- (unknown: posted with 2.4.0). {item} becomes the linked item and count, {mats} the materials list.
 local QUICK = {
-    crafter = { -- to the requester
+    crafter = {
         requester = { label = "Ask for mats", text = "Hi! I claimed your work order for {item}. Could you mail or trade me the materials{mats}?" },
         crafter = { label = "I'm on it", text = "Hi! I claimed your work order for {item}. I'll get the materials myself and let you know when it's ready." },
         unknown = { label = "Ask about mats", text = "Hi! I claimed your work order for {item}. Will you send me the materials, or should I get them?" },
         always = { label = "It's ready", text = "Your {item} is ready! Should I mail it, or shall we meet up to trade?" },
     },
-    requester = { -- to the crafter
+    requester = {
         requester = { label = "Sending mats", text = "Thanks for taking my work order for {item}! I'll send you the materials{mats}." },
         crafter = { label = "Thank you", text = "Thanks for taking my work order for {item}! Let me know when it's ready." },
         always = { label = "Any news?", text = "Hi! How is my work order for {item} coming along?" },
@@ -62,7 +54,6 @@ local QUICK = {
 }
 QUICK.requester.unknown = QUICK.requester.crafter
 
--- completing and cancelling are final, so they ask first
 StaticPopupDialogs["KORKRON_WORK_ORDER"] = {
     text = "%s",
     button1 = YES,
@@ -74,16 +65,12 @@ StaticPopupDialogs["KORKRON_WORK_ORDER"] = {
     preferredIndex = 3,
 }
 
--- what goes into the card ------------------------------------------------------------------------
-
--- the materials for the whole order ("30x Arcanite Bar"), or nil when nobody in the guild shares the recipe
 local function Materials(o)
     local e = KR.Recipes.Find(o.prof, o.name)
     local lines = e and UI.ReagentLines(e.recipe, o.qty)
     return lines and #lines > 0 and lines or nil
 end
 
--- a ready-made whisper; the materials list is left out if it would make the message too long to send
 local function Fill(text, item, lines)
     local list = lines and (" (" .. table.concat(lines, ", ") .. ")") or ""
     local full = string.gsub(text, "{(%a+)}", { item = item, mats = list })
@@ -108,7 +95,6 @@ local function People(o)
     return "Requested by " .. UI.PersonText(o.requester) .. ", " .. KR.FormatAgo(o.created) .. "\n" .. second
 end
 
--- while the order is claimed: have the requester's materials been sent, and received?
 local function MatsState(o)
     if o.status ~= "claimed" then return "" end
     local steps = KR.WorkOrders.MatsSteps(o)
@@ -131,12 +117,10 @@ local function MatsText(o)
     return who .. "\n|cffffffff" .. table.concat(lines, "\n") .. "|r"
 end
 
--- "11/07 8:05pm", in this PC's time zone
 local function When(t)
     return (string.gsub(string.lower(date("%m/%d %I:%M%p", t)), " 0", " "))
 end
 
--- every step of the order: when, what, who, and for a handover whether by trade, mail or hand
 local function HistoryText(o)
     if not o.log or #o.log == 0 then return "|cff9d9d9dNot recorded (posted with an older version).|r" end
     local lines = {}
@@ -147,8 +131,6 @@ local function HistoryText(o)
     return table.concat(lines, "\n")
 end
 
--- your side of a claimed or sent order ("crafter" or "requester") and the other person, when it's
--- between you and someone else
 local function Sides(o)
     if o.status ~= "claimed" and o.status ~= "sent" then return nil end
     local isRequester, isCrafter = KR.DB:IsMyCharacter(o.requester), KR.DB:IsMyCharacter(o.claimer)
@@ -158,8 +140,6 @@ local function Sides(o)
     return isCrafter and "crafter" or "requester", m
 end
 
--- the whisper section's title and buttons: ready-made messages between the two sides of a claimed or
--- sent order, otherwise a plain whisper to the requester and the crafter
 local function WhisperOptions(o)
     local side, other = Sides(o)
     if side then
@@ -178,8 +158,6 @@ local function WhisperOptions(o)
     end
     return "Whisper", options
 end
-
--- buttons ----------------------------------------------------------------------------------------
 
 local function WhisperClick(btn)
     local opt, o = btn.option, order
@@ -219,15 +197,12 @@ local function Button(label, width, onClick)
     return btn
 end
 
--- frame --------------------------------------------------------------------------------------------
-
 local function Label(template)
     local fs = frame:CreateFontString(nil, "OVERLAY", template)
     fs:SetJustifyH("LEFT")
     return fs
 end
 
--- a gold section title with a faint line to the right edge; the caller places it
 local function Header(text)
     local fs = Label("KorkronRosterFontNormal")
     fs:SetText(text)
@@ -239,8 +214,6 @@ local function Header(text)
     return fs
 end
 
--- text under a header, as wide as the card, growing with what it holds (a set width, so its height
--- can be measured straight after SetText)
 local function Body(header)
     local fs = Label("KorkronRosterFontHighlightSmall")
     fs:SetPoint("TOPLEFT", header, "BOTTOMLEFT", 4, -6)
@@ -293,7 +266,6 @@ local function Build()
     local matsHeader = Header("Materials")
     matsHeader:SetPoint("TOPLEFT", frame.people, "BOTTOMLEFT", 0, -14)
     frame.mats = Body(matsHeader)
-    -- on the header's line, at the card's right edge
     frame.matsButton = Button("", 110, ActionClick)
     frame.matsButton:SetHeight(20)
     frame.matsButton:SetPoint("LEFT", matsHeader, "LEFT", WIDTH - 32 - 110, 0)
@@ -334,7 +306,6 @@ local function ShowWhispers(o)
     end
 end
 
--- the buttons for what you may do now, side by side from the left, and the materials one
 local function ShowActions(o)
     local x = 12
     for _, btn in ipairs(frame.actions) do
@@ -355,7 +326,6 @@ local function ShowActions(o)
     if mats.action then mats:SetText(mats.action.label) end
 end
 
--- the card grows to fit what it holds
 local function FitHeight()
     local h = TOP + BOTTOM + frame.people:GetStringHeight()
     for _, fs in ipairs({ frame.mats, frame.note, frame.history }) do
@@ -371,7 +341,6 @@ function Card:Refresh()
     UI.PrimeItem(o.itemID)
     frame.icon.texture:SetTexture(KR.Recipes.Icon(o))
     frame.name:SetText(KR.WorkOrders.ItemText(o))
-    -- a sent order nobody confirmed in time counts as completed
     local status = (o.status == "sent" and KR.WorkOrders.IsFinished(o)) and "done" or o.status
     frame.sub:SetText(o.prof .. " - " .. STATUS_TEXT[status])
     frame.people:SetText(People(o))

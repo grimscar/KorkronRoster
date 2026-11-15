@@ -1,4 +1,3 @@
--- Kor'kron Roster: player card (click a name in the roster).
 local _, KR = ...
 
 local UI, Style = KR.UI, KR.Style
@@ -35,8 +34,6 @@ local function ClassName(classTag)
     return (names and names[classTag]) or (classTag and (classTag:sub(1, 1) .. classTag:sub(2):lower())) or ""
 end
 
--- main character picker (only on your own characters' cards) -----------------------------
-
 local function ChooseMain(value)
     KR.DB:SetMain(value or nil)
     KR.DB:SyncSelf()
@@ -61,8 +58,6 @@ local function ShowMainMenu(anchor)
     end
     UI.ShowMenu(anchor, options, function(opt) ChooseMain(opt.value) end)
 end
-
--- frame ---------------------------------------------------------------------------------
 
 local function ProfLine(parent, y)
     local btn = CreateFrame("Button", nil, parent)
@@ -108,13 +103,11 @@ local function Build()
     frame.info = Label(frame, "KorkronRosterFontHighlightSmall", 64, TOP - 22, WIDTH - 180)
     frame.rank = Label(frame, "KorkronRosterFontHighlightSmall", 64, TOP - 36, WIDTH - 180)
     frame.status = Label(frame, "KorkronRosterFontHighlightSmall", 64, TOP - 50, WIDTH - 80)
-    -- one line each: long text gets "..." instead of wrapping over the next line
     for _, fs in ipairs({ frame.name, frame.info, frame.rank, frame.status }) do
         fs:SetWordWrap(false)
     end
 
 
-    -- officers and the GM: change rank
     frame.setRank = UI.Button(frame, 90, 20)
     frame.setRank:SetPoint("TOPRIGHT", -16, TOP - 24)
     frame.setRank:SetText("Set Rank")
@@ -127,7 +120,6 @@ local function Build()
     end)
     frame.setRank:SetScript("OnLeave", function() GameTooltip:Hide() end)
 
-    -- main / alts
     Header(frame, "Main & Alts", TOP - 74)
     frame.family = Label(frame, "KorkronRosterFontHighlightSmall", 20, TOP - 94, WIDTH - 40)
     frame.family:SetWordWrap(true)
@@ -155,17 +147,14 @@ local function Build()
         if main then Card:Open(main) end
     end)
 
-    -- professions
     Header(frame, "Professions", TOP - 156)
     frame.profs = {}
     for i = 1, 5 do frame.profs[i] = ProfLine(frame, TOP - 174 - (i - 1) * 19) end
 
-    -- pvp
     Header(frame, "PvP", TOP - 276)
     frame.pvp = Label(frame, "KorkronRosterFontHighlightSmall", 20, TOP - 294, WIDTH - 40)
     frame.pvp:SetSpacing(2)
 
-    -- notes
     Header(frame, "Notes", TOP - 336)
     frame.notes = Label(frame, "KorkronRosterFontHighlightSmall", 20, TOP - 354, WIDTH - 40)
     frame.notes:SetWordWrap(true)
@@ -204,7 +193,6 @@ function Card:Refresh()
         frame.status:SetText("|cff9d9d9dOffline, last seen " .. KR.FormatAgo(m.lastOnline) .. "|r")
     end
 
-    -- main / alts
     local alts = KR.DB:GetAlts(m.main or m.name)
     local lines = {}
     if m.main then
@@ -231,7 +219,6 @@ function Card:Refresh()
     end
     frame.viewMain:SetShown(not mine and m.main ~= nil and KR.DB:GetMember(m.main) ~= nil)
 
-    -- professions
     local shown = 0
     for _, slot in ipairs(KR.PROF_SLOTS) do
         local p = m[slot]
@@ -254,13 +241,11 @@ function Card:Refresh()
         frame.profs[1]:Show()
     end
 
-    -- pvp
     local pvp = KR.PvP.Current(m.pvp)
     frame.pvp:SetText(string.format("%s\nHKs today |cff66ff66%d|r   this week |cffffffff%d|r   lifetime |cffff8040%d|r\nHonor this week |cffffd100%d|r",
         KR.PvP.RankName(pvp.rankNum) and ("|cffffd100" .. KR.PvP.RankName(pvp.rankNum) .. "|r (Rank " .. pvp.rankNum .. ")") or "Unranked",
         pvp.todayHK, pvp.weekHK, pvp.lifetimeHK, pvp.weekHonor))
 
-    -- notes; officer notes are only stored when you are allowed to read them
     local notes = {}
     if m.note and m.note ~= "" then notes[#notes + 1] = "Public: |cffffffff" .. m.note .. "|r" end
     if m.officerNote and m.officerNote ~= "" then notes[#notes + 1] = "Officer: |cffff8040" .. m.officerNote .. "|r" end

@@ -1,4 +1,3 @@
--- Kor'kron Roster: minimap button (drag to move around the minimap edge).
 local _, KR = ...
 
 local UI = KR.UI

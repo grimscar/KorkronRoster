@@ -1,4 +1,3 @@
--- Kor'kron Roster: options panel (Esc > Options > AddOns > Kor'kron Roster).
 local _, KR = ...
 
 local UI = KR.UI
@@ -122,6 +121,6 @@ function Options:Open()
         Settings.OpenToCategory(category:GetID())
     elseif InterfaceOptionsFrame_OpenToCategory then
         InterfaceOptionsFrame_OpenToCategory(panel)
-        InterfaceOptionsFrame_OpenToCategory(panel) -- first call only opens the frame on old clients
+        InterfaceOptionsFrame_OpenToCategory(panel)
     end
 end

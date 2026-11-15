@@ -1,10 +1,9 @@
--- Kor'kron Roster: addon-message transport with a bandwidth-limited send queue.
 local _, KR = ...
 
 local Comm = {}
 KR.Comm = Comm
 
-Comm.PREFIX = "KRROSTER" -- shared with 1.0 so old and new versions still see each other
+Comm.PREFIX = "KRROSTER"
 
 if C_ChatInfo and C_ChatInfo.RegisterAddonMessagePrefix then
     C_ChatInfo.RegisterAddonMessagePrefix(Comm.PREFIX)
@@ -12,17 +11,14 @@ elseif RegisterAddonMessagePrefix then
     RegisterAddonMessagePrefix(Comm.PREFIX)
 end
 
--- token bucket, same budget ChatThrottleLib uses: ~800 bytes/s sustained
 local CPS, BURST, OVERHEAD = 800, 2000, 25
 local MAX_MESSAGE = 255
 local PRIORITIES = { "ALERT", "NORMAL", "BULK" }
 local queues = { ALERT = {}, NORMAL = {}, BULK = {} }
 local bucket = BURST
 
--- messages we sent in the last minute; their echo tells us our own full name
 Comm.recentlySent = {}
 
--- Enum.SendAddonMessageResult values that mean "try again later"
 local THROTTLED = { [3] = true, [8] = true }
 
 local function RawSend(msg, channel, target)
@@ -45,7 +41,7 @@ pump:SetScript("OnUpdate", function(self, elapsed)
             if bucket < cost then return end
             local result = RawSend(item.msg, item.channel, item.target)
             if type(result) == "number" and THROTTLED[result] then
-                bucket = 0 -- the server pushed back; retry once the bucket refills
+                bucket = 0
                 return
             end
             table.remove(q, 1)
@@ -76,25 +72,19 @@ function Comm:Pending()
     return #queues.ALERT + #queues.NORMAL + #queues.BULK
 end
 
--- receiving --------------------------------------------------------------------
-
 local handlers = {}
 
--- fn(senderName, message, channel, rawSender); only guild traffic is dispatched.
--- Several modules may listen to the same command.
 function Comm:RegisterHandler(cmd, fn)
     handlers[cmd] = handlers[cmd] or {}
     table.insert(handlers[cmd], fn)
 end
 
 KR:RegisterEvent("CHAT_MSG_ADDON", function(prefix, msg, channel, sender)
-    -- the game may hide any of these inside instances; a hidden message can't be read, so skip it
     prefix, msg, channel, sender = KR.Text(prefix), KR.Text(msg), KR.Text(channel), KR.Text(sender)
     if prefix ~= Comm.PREFIX or channel ~= "GUILD" or not msg or not sender or not KR.db then return end
     local name = KR.NameKey(sender)
     if not name then return end
 
-    -- our own echo
     local sentAt = Comm.recentlySent[msg]
     if sentAt and GetTime() - sentAt < 60 and KR.FirstName(name) == UnitName("player") then
         if KR.LearnPlayerName(name) then
@@ -107,7 +97,6 @@ KR:RegisterEvent("CHAT_MSG_ADDON", function(prefix, msg, channel, sender)
     local cmd = string.match(msg, "^([^%^]+)")
     local list = cmd and handlers[cmd]
     if not list then return end
-    -- one broken handler must not stop the others
     for i = 1, #list do
         KR.Safe(list[i], name, msg, channel, sender)
     end

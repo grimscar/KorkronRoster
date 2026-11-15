@@ -1,6 +1,3 @@
--- Kor'kron Roster: the "New Work Order" window. A searchable list of everything the guild can craft
--- (from the shared recipe lists): pick an item, set how many, who provides the materials and a
--- note, and post the order.
 local _, KR = ...
 
 local UI = KR.UI
@@ -8,7 +5,7 @@ local Form = {}
 UI.WorkOrderForm = Form
 
 local ROW_HEIGHT = 20
-local MAX_CRAFTERS = 8 -- names shown before "+N"
+local MAX_CRAFTERS = 8
 
 local MATS_CHOICES = {
     { value = "requester", label = "I'll provide the materials" },
@@ -16,15 +13,14 @@ local MATS_CHOICES = {
 }
 
 local frame, list, detail
-local selected -- an entry of the guild's recipe index
-local mats     -- who provides the materials: "requester" or "crafter", nil until the requester picks
+local selected
+local mats
 local searchText = ""
 
 local function Lower(s)
     return string.lower(s or "")
 end
 
--- every recipe in the guild that matches the search, by name
 local function Craftables()
     local out, key = {}, {}
     for _, e in ipairs(KR.Recipes.GetIndex().list) do
@@ -37,8 +33,6 @@ local function Craftables()
     table.sort(out, function(a, b) return key[a] < key[b] end)
     return out
 end
-
--- detail pane ------------------------------------------------------------------------------
 
 local function ShowSelected()
     local e = selected
@@ -86,8 +80,6 @@ local function Submit()
     end
 end
 
--- item list --------------------------------------------------------------------------------
-
 local function RowOnClick(row)
     if IsModifiedClick and IsModifiedClick("CHATLINK") then
         UI.InsertLink(KR.Recipes.Link(row.item.recipe))
@@ -127,8 +119,6 @@ local function UpdateRow(row, e)
     row.text:SetText(e.recipe.name)
     row.prof:SetText(e.prof)
 end
-
--- frame ------------------------------------------------------------------------------------
 
 local function EditBox(name, parent, width, maxLetters)
     local box = UI.EditBox(parent, width, name)
@@ -184,7 +174,6 @@ local function BuildDetail(left)
     detail.reagents:SetPoint("RIGHT", -10, 0)
     detail.reagents:SetSpacing(2)
 
-    -- no default: every requester says who provides the materials
     local matsLabel = Label(detail, "KorkronRosterFontNormalSmall", "Materials:")
     matsLabel:SetPoint("BOTTOMLEFT", 16, 128)
     frame.mats = {}
@@ -275,7 +264,6 @@ end
 
 function Form:Refresh()
     if not frame or not frame:IsShown() then return end
-    -- new recipe data rebuilds the index; keep the same recipe picked
     if selected then selected = KR.Recipes.Find(selected.prof, selected.recipe.name) or selected end
     list:SetItems(Craftables())
     ShowSelected()

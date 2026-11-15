@@ -1,4 +1,3 @@
--- Kor'kron Roster: the guild log window, for officers: who joined, left or changed rank, newest first.
 local _, KR = ...
 
 local UI = KR.UI
@@ -17,7 +16,6 @@ local ACTION = {
 
 local frame, list
 
--- "~" because the game only gives an event's age in whole hours
 local function When(at)
     return (string.gsub(string.lower(date("%m/%d/%y ~%I%p", at)), "~0", "~"))
 end
@@ -44,7 +42,6 @@ local function CreateRow(parent)
     row.text:SetPoint("RIGHT", -6, 0)
     row.text:SetJustifyH("LEFT")
     row.text:SetWordWrap(false)
-    -- no card for someone who has left: Open ignores a member we don't have
     row:SetScript("OnClick", function(self) UI.MemberCard:Open(KR.DB:GetMember(self.item.name)) end)
     return row
 end

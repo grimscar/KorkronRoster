@@ -1,5 +1,3 @@
--- Kor'kron Roster: inactivity report. Purely informational: players (a main and all of
--- their alts together) grouped by how long since any of their characters was online.
 local _, KR = ...
 
 local UI = KR.UI
@@ -17,7 +15,7 @@ local BRACKETS = {
 }
 
 local frame, list
-local collapsed = { [1] = true } -- the active bracket is usually the big boring one
+local collapsed = { [1] = true }
 
 local function BuildRows()
     local now = time()

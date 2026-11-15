@@ -1,4 +1,3 @@
--- Kor'kron Roster: guild roster scanning and pruning of departed members.
 local _, KR = ...
 
 local Roster = {}
@@ -6,7 +5,6 @@ KR.Roster = Roster
 
 local lastRequest = -60
 
--- ask the server for a fresh roster; it throttles this itself, so we do too
 function Roster:Request()
     if not IsInGuild() or GetTime() - lastRequest < 10 then return end
     lastRequest = GetTime()
@@ -32,7 +30,6 @@ function Roster:Scan()
     local canViewOfficer = (C_GuildInfo and C_GuildInfo.CanViewOfficerNote and C_GuildInfo.CanViewOfficerNote())
         or (CanViewOfficerNote and CanViewOfficerNote()) or false
 
-    -- a value the game hides keeps what we knew before (`old`)
     local function Read(value, old)
         if KR.Readable(value) then return value end
         return old
@@ -60,7 +57,7 @@ function Roster:Scan()
             m.note = Read(note, m.note)
             m.officerNote = canViewOfficer and Read(officerNote, m.officerNote) or nil
             m.whisperTarget = fullName
-            m.rosterName = fullName -- exact roster spelling, used for /gpromote and /gdemote
+            m.rosterName = fullName
             if online then
                 m.lastOnline = now
             elseif GetGuildRosterLastOnline then
@@ -70,12 +67,10 @@ function Roster:Scan()
         end
     end
 
-    -- the client only told us our first name; the roster has the full one
     if not foundSelf and #selfCandidates == 1 and KR.LearnPlayerName(selfCandidates[1]) then
         foundSelf = true
     end
 
-    -- only prune when we are sure we saw the complete roster
     local showsOffline = not GetGuildRosterShowOffline or GetGuildRosterShowOffline()
     if foundSelf and showsOffline and listed == total then
         local removed = KR.DB:PruneMembers(seen)
@@ -89,9 +84,6 @@ function Roster:Scan()
     KR:Fire("DATA_UPDATED")
 end
 
--- members grouped into players: a main plus every character that names it as main.
--- Alts whose main is not in the guild stand on their own.
--- Each player: { lead = member, chars = { members }, online, onlineChar, lastOnline }
 function Roster:GetPlayers()
     local groups, list = {}, {}
     local g = KR.DB:GetGuild()
@@ -107,7 +99,6 @@ function Roster:GetPlayers()
         p.chars[#p.chars + 1] = m
         if m.online then
             p.online = true
-            -- prefer reporting the main when both are somehow online
             if not p.onlineChar or name == key then p.onlineChar = m end
         end
         p.lastOnline = math.max(p.lastOnline, m.lastOnline or 0)

@@ -1,4 +1,3 @@
--- Kor'kron Roster: recipe browser for one member's profession.
 local _, KR = ...
 
 local UI, Style = KR.UI, KR.Style
@@ -11,7 +10,7 @@ local MAX_REAGENTS = 8
 local frame, list, detail
 local member, profName
 local selectedName
-local pickedByUser = false -- the auto-selected first recipe is not linked in whispers
+local pickedByUser = false
 local collapsed = {}
 local searchText = ""
 
@@ -25,8 +24,6 @@ local function ReagentInfo(rg)
     local icon = rg.icon or KR.Recipes.Icon({ itemID = rg.itemID })
     return name or rg.name or (rg.itemID and ("Item #" .. rg.itemID)) or "?", icon, link
 end
-
--- detail pane ------------------------------------------------------------------------------
 
 local function ShowRecipe(r)
     if not r then
@@ -62,8 +59,6 @@ local function ShowRecipe(r)
         end
     end
 end
-
--- recipe list ------------------------------------------------------------------------------
 
 local function BuildRows()
     local recipes = CurrentRecipes()
@@ -151,8 +146,6 @@ local function UpdateRow(row, item)
     end
 end
 
--- frame ------------------------------------------------------------------------------------
-
 local function ReagentButton(parent, i)
     local rf = CreateFrame("Button", nil, parent)
     rf:SetSize(124, 34)
@@ -204,10 +197,9 @@ local function Build()
     UI.MakePopup(frame)
     Style.Window(frame, "")
 
-    -- the profession's icon, at the left of the title band
     frame.portrait = frame:CreateTexture(nil, "OVERLAY")
     frame.portrait:SetSize(20, 20)
-    frame.portrait:SetPoint("LEFT", frame, "TOPLEFT", 16, -Style.BAND / 2) -- clear of the corner spike
+    frame.portrait:SetPoint("LEFT", frame.crest, "RIGHT", 6, 0)
 
     local bar = CreateFrame("StatusBar", nil, frame)
     bar:SetSize(300, 16)
@@ -368,7 +360,6 @@ function Inspector:Open(m, prof, recipeName)
         pickedByUser = false
         frame.search:SetText("")
     end
-    -- opened from the Recipes tab for a specific recipe: that counts as picking it
     if recipeName then
         selectedName = recipeName
         pickedByUser = true

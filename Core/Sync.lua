@@ -91,35 +91,9 @@ function Sync:RequestAll()
     Comm:Send("REQ", "ALERT")
     self:SendProfile(true)
     KR.WorkOrders.Request()
+    KR.Links.Request()
+    KR.RaidPlans.Request()
     return true
-end
-
-local function SplitPayload(s, size)
-    local chunks, pos, len = {}, 1, #s
-    while pos <= len do
-        local stop = pos + size - 1
-        if stop >= len then
-            stop = len
-        else
-            local cut
-            for i = stop, pos + math.floor(size / 2), -1 do
-                if string.byte(s, i) == 126 then cut = i break end
-            end
-            if cut then
-                stop = cut
-            else
-                while stop > pos do
-                    local nextByte = string.byte(s, stop + 1)
-                    local inChar = nextByte >= 128 and nextByte < 192
-                    if not inChar and string.byte(s, stop) ~= 32 then break end
-                    stop = stop - 1
-                end
-            end
-        end
-        chunks[#chunks + 1] = string.sub(s, pos, stop)
-        pos = stop + 1
-    end
-    return chunks
 end
 
 local lastRecipeSend = {}
@@ -133,7 +107,7 @@ function Sync:SendRecipes(prof)
 
     local cleanProf = Clean(prof)
     local header = "R^" .. cleanProf .. "^" .. data.hash .. "^"
-    local chunks = SplitPayload(Recipes.Serialize(data.list), 255 - #header - 10)
+    local chunks = Comm.Split(Recipes.Serialize(data.list), 255 - #header - 10)
     for i, chunk in ipairs(chunks) do
         Comm:Send(header .. i .. "^" .. #chunks .. "^" .. chunk, "BULK")
     end

@@ -89,7 +89,8 @@ function Roster:GetPlayers()
     local g = KR.DB:GetGuild()
     if not g then return list, groups end
     for name, m in pairs(g.members) do
-        local key = (m.main and KR.DB:GetMember(m.main, false, g)) and m.main or name
+        local main = KR.DB:MainOf(m, g)
+        local key = (main and KR.DB:GetMember(main, false, g)) and main or name
         local p = groups[key]
         if not p then
             p = { lead = KR.DB:GetMember(key, false, g), chars = {}, online = false, lastOnline = 0 }

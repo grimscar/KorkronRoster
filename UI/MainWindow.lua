@@ -7,7 +7,7 @@ UI.Main = Main
 local TOP = Style.TOP
 local ROW_HEIGHT = 20
 local MAX_COLUMNS = 8
-local FRAME_WIDTH = 980
+local FRAME_WIDTH = 1060
 local TAB_WIDTH = 90
 local CLASS_COORDS = KR.CLASS_ICON_TCOORDS
 
@@ -332,10 +332,11 @@ local function OrderTiebreak(a, b)
     return a.id < b.id
 end
 
-local function MemberMatches(m)
+local function MemberMatches(m, g)
     if searchText == "" then return true end
     if string.find(Lower(m.name), searchText, 1, true) then return true end
-    if m.main and string.find(Lower(m.main), searchText, 1, true) then return true end
+    local main = KR.DB:MainOf(m, g)
+    if main and string.find(Lower(main), searchText, 1, true) then return true end
     for _, slot in ipairs(KR.PROF_SLOTS) do
         local p = m[slot]
         if p and (p.rank or 0) > 0 and string.find(Lower(p.name), searchText, 1, true) then return true end
@@ -345,8 +346,9 @@ end
 
 local function MemberItems()
     local out, showOffline = {}, KR.db.settings.showOffline
+    local g = KR.DB:GetGuild()
     for _, m in KR.DB:IterateMembers() do
-        if (showOffline or m.online) and MemberMatches(m) then out[#out + 1] = m end
+        if (showOffline or m.online) and MemberMatches(m, g) then out[#out + 1] = m end
     end
     return out
 end
@@ -372,11 +374,12 @@ local function RosterItems()
     wipe(playerOf)
     if not KR.db.settings.mainsOnly then return MemberItems() end
     local out, showOffline = {}, KR.db.settings.showOffline
+    local g = KR.DB:GetGuild()
     for _, p in ipairs(KR.Roster:GetPlayers()) do
         if p.lead and (showOffline or p.online) then
             local match = false
             for _, c in ipairs(p.chars) do
-                if MemberMatches(c) then match = true break end
+                if MemberMatches(c, g) then match = true break end
             end
             if match then
                 playerOf[p.lead.name] = p
@@ -568,6 +571,10 @@ local TABS = {
         items = function() return OrderItems(true) end,
         tiebreak = OrderTiebreak,
     },
+    {
+        id = "RAIDS", label = "Raid Planner", title = "Raid Planner",
+        pane = UI.RaidPlanner,
+    },
 }
 
 local function CurrentTab()
@@ -651,10 +658,10 @@ end
 
 local function UpdateHeaders()
     local tab = CurrentTab()
-    local sort = SortState(tab)
+    local sort = tab.columns and SortState(tab)
     local x = 14
     for i, hdr in ipairs(headerButtons) do
-        local col = tab.columns[i]
+        local col = tab.columns and tab.columns[i]
         if col then
             hdr:ClearAllPoints()
             hdr:SetPoint("TOPLEFT", frame, "TOPLEFT", x, TOP - 32)
@@ -678,6 +685,9 @@ local function UpdateHeaders()
     frame.inactivity:SetShown(tab.rosterTools and true or false)
     frame.guildLog:SetShown(tab.rosterTools and KR.GuildLog.CanView() or false)
     frame.newOrder:SetShown(tab.orderTools and true or false)
+    frame.search:SetShown(not tab.pane)
+    frame.offlineCheck:SetShown(not tab.pane)
+    frame.offlineCheck.label:SetShown(not tab.pane)
     frame.title:SetText("|cffc41f3bKor'kron|r - " .. tab.title)
 end
 
@@ -703,6 +713,14 @@ function Main:Refresh()
     guild = KR.DB:GetGuild()
     pvpDay, pvpWeek = KR.PvP.GetKeys()
     local tab = CurrentTab()
+    UpdateHeaders()
+    UpdateStatus()
+    list:SetShown(not tab.pane)
+    UI.RaidPlanner:SetShown(tab.pane == UI.RaidPlanner)
+    if tab.pane then
+        tab.pane:Refresh()
+        return
+    end
     local items = tab.items()
     local sort = SortState(tab)
     local col = FindColumn(tab, sort.key) or tab.columns[1]
@@ -717,9 +735,7 @@ function Main:Refresh()
         end
         return tiebreak(a, b)
     end)
-    UpdateHeaders()
     list:SetItems(items)
-    UpdateStatus()
 end
 
 local function RequestRefresh()
@@ -787,6 +803,7 @@ local function Build()
     search:SetScript("OnEditFocusLost", function(self) self.placeholder:SetShown(self:GetText() == "") end)
     search:SetScript("OnEscapePressed", function(self) self:SetText("") self:ClearFocus() end)
     search:SetScript("OnEnterPressed", function(self) self:ClearFocus() end)
+    frame.search = search
 
     local offline = UI.CheckButton(frame)
     offline:SetPoint("LEFT", search, "RIGHT", 12, 0)
@@ -854,6 +871,7 @@ local function Build()
     list = UI.CreateList(frame, "KorkronRosterList", ROW_HEIGHT, CreateRow, UpdateRow)
     list:SetPoint("TOPLEFT", frame, "TOPLEFT", 14, TOP - 54)
     list:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -12, 30)
+    UI.RaidPlanner:Attach(frame)
 
     frame.status = frame:CreateFontString(nil, "OVERLAY", "KorkronRosterFontHighlightSmall")
     frame.status:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", 16, 11)

@@ -238,6 +238,11 @@ function UI.SetCell(cell, align, text, icon, coords)
     cell.text:SetText(text or "")
 end
 
+function UI.ClassName(classTag)
+    local names = LOCALIZED_CLASS_NAMES_MALE
+    return (names and names[classTag]) or (classTag and (classTag:sub(1, 1) .. classTag:sub(2):lower())) or ""
+end
+
 function UI.ColoredName(m)
     local name = m.name or "?"
     if not m.online then return "|cff808080" .. name .. "|r" end
@@ -285,7 +290,8 @@ end
 
 function UI.DisplayName(m)
     local text = UI.ColoredName(m)
-    if m.main then text = text .. " |cff9d9d9d(" .. m.main .. ")|r" end
+    local main = KR.DB:MainOf(m)
+    if main then text = text .. " |cff9d9d9d(" .. main .. ")|r" end
     return text
 end
 
@@ -374,8 +380,9 @@ end
 function UI.MemberTooltip(owner, m)
     GameTooltip:SetOwner(owner, "ANCHOR_RIGHT")
     GameTooltip:AddLine(UI.ColoredName(m))
-    if m.main then
-        GameTooltip:AddLine("Alt of " .. m.main, 0.8, 0.8, 0.8)
+    local main = KR.DB:MainOf(m)
+    if main then
+        GameTooltip:AddLine("Alt of " .. main, 0.8, 0.8, 0.8)
     else
         local alts = KR.DB:GetAlts(m.name)
         if #alts > 0 then

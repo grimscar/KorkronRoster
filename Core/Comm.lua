@@ -72,6 +72,34 @@ function Comm:Pending()
     return #queues.ALERT + #queues.NORMAL + #queues.BULK
 end
 
+function Comm.Split(s, size)
+    local chunks, pos, len = {}, 1, #s
+    while pos <= len do
+        local stop = pos + size - 1
+        if stop >= len then
+            stop = len
+        else
+            local cut
+            for i = stop, pos + math.floor(size / 2), -1 do
+                if string.byte(s, i) == 126 then cut = i break end
+            end
+            if cut then
+                stop = cut
+            else
+                while stop > pos do
+                    local nextByte = string.byte(s, stop + 1)
+                    local inChar = nextByte >= 128 and nextByte < 192
+                    if not inChar and string.byte(s, stop) ~= 32 then break end
+                    stop = stop - 1
+                end
+            end
+        end
+        chunks[#chunks + 1] = string.sub(s, pos, stop)
+        pos = stop + 1
+    end
+    return chunks
+end
+
 local handlers = {}
 
 function Comm:RegisterHandler(cmd, fn)

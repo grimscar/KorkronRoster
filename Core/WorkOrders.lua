@@ -98,10 +98,7 @@ local function Newer(a, b)
     return a.by > b.by
 end
 
-local function IsOfficer(name)
-    local m = KR.DB:GetMember(name)
-    return m ~= nil and KR.Ranks.IsManagerIndex(m.guildRankIndex)
-end
+local IsOfficer = KR.Ranks.IsOfficer
 
 local function Allowed(o, old)
     local by = o.by

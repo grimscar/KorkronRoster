@@ -15,6 +15,7 @@ local DEFAULT_SETTINGS = {
     tab = "ROSTER",
     mainsOnly = false,
     sort = {},
+    raidFilter = { online = false, mains = false },
 }
 
 local function ApplyDefaults(target, defaults)
@@ -106,6 +107,7 @@ function DB:Init()
     db.guilds = db.guilds or {}
     db.mains = db.mains or {}
     db.guildLogs = db.guildLogs or {}
+    db.raidPlans = db.raidPlans or {}
     KR.db = db
 end
 
@@ -181,8 +183,8 @@ function DB:PruneMembers(seen)
 end
 
 function DB:WipeGuild()
-    local _, key = self:GetGuild()
-    if key then KR.db.guilds[key] = nil end
+    local g, key = self:GetGuild()
+    if key then KR.db.guilds[key] = { name = g.name, members = {}, links = g.links } end
 end
 
 function DB:SyncSelf()
@@ -255,10 +257,19 @@ function DB:IsMyCharacter(name)
     return KR.IsMe(name)
 end
 
+function DB:MainOf(m, g)
+    if m.main then return m.main end
+    g = g or self:GetGuild()
+    local link = g and g.links and g.links[m.name]
+    if link and link.main ~= "" then return link.main, link.by end
+    return nil
+end
+
 function DB:GetAlts(mainName)
     local alts = {}
+    local g = self:GetGuild()
     for name, m in self:IterateMembers() do
-        if m.main == mainName and name ~= mainName then alts[#alts + 1] = m end
+        if name ~= mainName and self:MainOf(m, g) == mainName then alts[#alts + 1] = m end
     end
     table.sort(alts, function(a, b) return a.name < b.name end)
     return alts

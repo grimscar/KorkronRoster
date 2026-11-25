@@ -29,6 +29,15 @@ function Ranks.IsManagerIndex(index)
     return index ~= nil and index <= OfficerIndex()
 end
 
+function Ranks.IsOfficer(name)
+    local m = KR.DB:GetMember(name)
+    return m ~= nil and Ranks.IsManagerIndex(m.guildRankIndex)
+end
+
+function Ranks.AmOfficer()
+    return Ranks.IsManagerIndex(Ranks.MyIndex())
+end
+
 function Ranks.CanEdit(m)
     local mine = Ranks.MyIndex()
     return m ~= nil and not KR.IsMe(m.name) and Ranks.IsManagerIndex(mine)

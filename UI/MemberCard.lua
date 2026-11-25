@@ -29,11 +29,6 @@ local function Header(parent, text, y)
     return fs
 end
 
-local function ClassName(classTag)
-    local names = LOCALIZED_CLASS_NAMES_MALE
-    return (names and names[classTag]) or (classTag and (classTag:sub(1, 1) .. classTag:sub(2):lower())) or ""
-end
-
 local function ChooseMain(value)
     KR.DB:SetMain(value or nil)
     KR.DB:SyncSelf()
@@ -125,15 +120,27 @@ local function Build()
     frame.family:SetWordWrap(true)
 
     frame.mainLabel = Label(frame, "KorkronRosterFontNormalSmall", 20, TOP - 124)
-    frame.mainLabel:SetText("Your main:")
     local picker = UI.Button(frame, 230)
     picker:SetPoint("LEFT", frame.mainLabel, "RIGHT", 8, 0)
-    picker:SetScript("OnClick", function(self) ShowMainMenu(self) end)
+    picker:SetScript("OnClick", function(self)
+        if self.mode == "own" then
+            ShowMainMenu(self)
+        elseif self.mode == "officer" then
+            UI.MainPicker:Open(member)
+        end
+    end)
     picker:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
         GameTooltip:AddLine("Main character")
-        GameTooltip:AddLine("Pick which of your characters is your main. Your other characters in this guild then show up as \"Alt (Main)\" for everyone.", 1, 1, 1, true)
-        GameTooltip:AddLine("Only characters you have logged into with Kor'kron Roster are listed.", 0.7, 0.7, 0.7, true)
+        if self.mode == "own" then
+            GameTooltip:AddLine("Pick which of your characters is your main. Your other characters in this guild then show up as \"Alt (Main)\" for everyone.", 1, 1, 1, true)
+            GameTooltip:AddLine("Only characters you have logged into with Kor'kron Roster are listed.", 0.7, 0.7, 0.7, true)
+        elseif self.mode == "officer" then
+            GameTooltip:AddLine("Pick which character this one is an alt of. Everyone with Kor'kron Roster sees it, so you can link players who don't run the addon.", 1, 1, 1, true)
+            GameTooltip:AddLine("If the player picks a main themselves, their own pick counts.", 0.7, 0.7, 0.7, true)
+        else
+            GameTooltip:AddLine("They picked their main in Kor'kron Roster themselves, so their own pick counts.", 1, 1, 1, true)
+        end
         GameTooltip:Show()
     end)
     picker:SetScript("OnLeave", function() GameTooltip:Hide() end)
@@ -143,8 +150,9 @@ local function Build()
     frame.viewMain:SetPoint("TOPRIGHT", -16, TOP - 118)
     frame.viewMain:SetText("View Main")
     frame.viewMain:SetScript("OnClick", function()
-        local main = member and member.main and KR.DB:GetMember(member.main)
-        if main then Card:Open(main) end
+        local main = member and KR.DB:MainOf(member)
+        local m = main and KR.DB:GetMember(main)
+        if m then Card:Open(m) end
     end)
 
     Header(frame, "Professions", TOP - 156)
@@ -168,7 +176,30 @@ local function Build()
     frame.whisper:SetText("Whisper")
     frame.whisper:SetScript("OnClick", function() UI.Whisper(member) end)
 
-    frame:SetScript("OnHide", function() UI.HideMenu() end)
+    frame:SetScript("OnHide", function()
+        UI.HideMenu()
+        UI.MainPicker:Hide()
+    end)
+end
+
+local function ShowPicker(m, main)
+    local picker = frame.picker
+    if KR.DB:IsMyCharacter(m.name) then
+        picker.mode = "own"
+        frame.mainLabel:SetText("Your main:")
+        picker:SetWidth(230)
+        picker:SetText(KR.DB:GetMainSetting() or "Choose...")
+    elseif KR.Links.CanSet(m) then
+        picker.mode = m.main and "theirs" or "officer"
+        frame.mainLabel:SetText("Main:")
+        picker:SetWidth(150)
+        picker:SetText(main or "Choose...")
+    else
+        picker.mode = nil
+    end
+    picker:SetEnabled(picker.mode ~= "theirs")
+    frame.mainLabel:SetShown(picker.mode ~= nil)
+    picker:SetShown(picker.mode ~= nil)
 end
 
 function Card:Refresh()
@@ -184,7 +215,7 @@ function Card:Refresh()
     end
     frame.classIcon:SetDesaturated(not m.online)
     frame.name:SetText(UI.ColoredName(m))
-    frame.info:SetText(string.format("Level %s %s", m.level or "?", ClassName(m.class)))
+    frame.info:SetText(string.format("Level %s %s", m.level or "?", UI.ClassName(m.class)))
     frame.rank:SetText("|cffffd100" .. (m.guildRank or "") .. "|r")
     frame.setRank:SetShown(KR.Ranks.CanEdit(m))
     if m.online then
@@ -193,10 +224,11 @@ function Card:Refresh()
         frame.status:SetText("|cff9d9d9dOffline, last seen " .. KR.FormatAgo(m.lastOnline) .. "|r")
     end
 
-    local alts = KR.DB:GetAlts(m.main or m.name)
+    local main, by = KR.DB:MainOf(m)
+    local alts = KR.DB:GetAlts(main or m.name)
     local lines = {}
-    if m.main then
-        lines[#lines + 1] = "Alt of |cffffd100" .. m.main .. "|r"
+    if main then
+        lines[#lines + 1] = "Alt of |cffffd100" .. main .. "|r" .. (by and (" |cff9d9d9d(set by " .. by .. ")|r") or "")
         local others = {}
         for _, alt in ipairs(alts) do
             if alt.name ~= m.name then others[#others + 1] = UI.ColoredName(alt) end
@@ -211,13 +243,8 @@ function Card:Refresh()
     end
     frame.family:SetText(table.concat(lines, "\n"))
 
-    local mine = KR.DB:IsMyCharacter(m.name)
-    frame.mainLabel:SetShown(mine)
-    frame.picker:SetShown(mine)
-    if mine then
-        frame.picker:SetText(KR.DB:GetMainSetting() or "Choose...")
-    end
-    frame.viewMain:SetShown(not mine and m.main ~= nil and KR.DB:GetMember(m.main) ~= nil)
+    ShowPicker(m, main)
+    frame.viewMain:SetShown(not KR.DB:IsMyCharacter(m.name) and main ~= nil and KR.DB:GetMember(main) ~= nil)
 
     local shown = 0
     for _, slot in ipairs(KR.PROF_SLOTS) do

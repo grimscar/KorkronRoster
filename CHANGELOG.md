@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.10.0
+- New **Raid Planner** tab (`/kr raids`): the Guild Master's raid line-ups for 10, 20 or 40 players. Each plan is a board with a column per role (Tank, Off Tank, Melee DPS, Ranged DPS, Healer): the raid at the top of each column, that role's bench below. The Guild Master drags guild members from the list on the left (by class, highest level first) into place, or right-clicks a name to move it, and can keep, copy, rename and delete as many plans as they like.
+- The count at the top turns red when a plan has more people in the raid than its size, and a red **!** marks two characters of the same player in the same raid.
+- Everyone in the guild running the addon sees the plans, read-only.
+- The window is a little wider to fit the new tab.
+- **Officers can set mains and alts** for anyone in the guild, including players who don't run the addon. On someone else's player card, officers (Hearth-Caller and up) get a **Main** button: pick the character this one is an alt of from a searchable list, or **No main** to clear it. Everyone running the addon sees the link, and the card says which officer set it.
+- A player's own choice of main still counts over an officer's. If they pick one themselves, the officer's button is greyed out on their card.
+- Links set while you were offline arrive the next time you're online at the same time as an officer.
+
 ## 2.9.1
 - **The guild's crest**, the Kor'kron Guard's tabard emblem on crimson, now sits in the title band of every window, the same in all the Kor'kron mods. After updating, restart the game once (not just `/reload`) so the new art loads.
 
